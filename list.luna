@@ -1,0 +1,37 @@
+(function add_ten (x) (+ x 10))
+(function zero? (x) (= x 0))
+(function even? (x) (zero? (mod x 2)))
+
+(function filter (pred lst)
+	(if (null lst)
+		(list)
+		(if (pred (fst lst))
+			(cons
+				(fst lst)
+				(filter pred (rst lst))
+			)
+			(filter pred (rst lst))
+		)
+	)
+)
+
+(defvar origin (list 1 2 3 4))
+(defvar modified (map add_ten origin))
+
+(write "Original list: ")
+(writeln origin)
+
+(write "Modified (map) list: ")
+(writeln modified)
+
+(write "\nFirst (fst) element of (list 1 2 3 4): ")
+(writeln (fst (list 1 2 3 4)))
+
+(write "Rest (rst) of (list 1 2 3 4): ")
+(writeln (rst (list 1 2 3 4)))
+
+(write "Filter even number of (list 1 2 3 4): ")
+(writeln (filter even? (list 1 2 3 4)))
+
+(defvar origin (map add_ten origin))
+(writeln origin)

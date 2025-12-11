@@ -1,0 +1,3 @@
+(write "Hello World from Soluna !\n")
+(write "4 - 2 = ") (write (- 4 2))
+(write "\n10 * (2 + 3) = ") (write (* 10 (+ 2 3))) (write "\n")

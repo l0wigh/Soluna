@@ -1,0 +1,35 @@
+(defvar lambda_loop (
+	lambda (counter limit)
+	(if (< counter limit)
+		(do (writeln counter) (lambda_loop (+ counter 1) limit))
+		(writeln "Lambda loop done.\n")
+	)
+))
+
+(function sugar_loop (counter limit)
+	(if (< counter limit)
+		(do (writeln counter) (sugar_loop (+ counter 1) limit))
+		(writeln "Syntactic Sugar loop done.\n")
+	)
+)
+
+(function sneaky_loop (counter limit)
+	(if (< counter limit)
+		(sneaky_loop (+ counter 1) limit)
+		(do (writeln (- counter 1)) (writeln "Sneaky loop done.\n"))
+	)
+)
+
+(function advanced_loop (counter limit fun)
+	(if (< counter limit)
+		(do (fun counter) (advanced_loop (+ counter 1) limit fun))
+		(writeln "Advanced loop done.")
+	)
+)
+
+(function show_mul_two (x) (writeln (* x 2)))
+
+(lambda_loop 1 6)
+(sugar_loop 1 6)
+(sneaky_loop 1 6)
+(advanced_loop 1 6 show_mul_two)

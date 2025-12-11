@@ -1,0 +1,8 @@
+lib: [
+  "_build/install/default/lib/soluna/META"
+  "_build/install/default/lib/soluna/dune-package"
+  "_build/install/default/lib/soluna/opam"
+]
+bin: [
+  "_build/install/default/bin/soluna"
+]

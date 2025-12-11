@@ -1,0 +1,19 @@
+(function fibonacci (n)
+	(do
+		(function fib_aux (x acc1 acc2) 
+			(if (= x 0) acc2 (fib_aux (- x 1) acc2 (+ acc1 acc2)))
+		)
+		(fib_aux n 1 0)
+	)
+)
+
+(function loop_fib (start end)
+	(if (< start end)
+		(do (write (fibonacci start)) (write ", ") (loop_fib (+ start 1) end))
+		(writeln "\nDone.")
+	)
+)
+
+(writeln "Fibonacci 1 -> 8")
+(writeln "----------------")
+(loop_fib 1 9)

@@ -1,0 +1,11 @@
+(defvar x 10)
+(function mutate ()
+	(do
+		(defvar x 20)
+		(write "Local x: ")
+		(writeln x)
+	)
+)
+(mutate)
+(write "Global x: ")
+(writeln x)
