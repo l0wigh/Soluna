@@ -1,6 +1,6 @@
 # Soluna 0.1.1
 
-<img align="left" src="https://raw.githubusercontent.com/l0wigh/Soluna/refs/heads/master/logo_alchemy.gif">
+<img align="left" size="33%" src="https://raw.githubusercontent.com/l0wigh/Soluna/refs/heads/master/logo_alchemy.gif">
 <!-- ![Alchemy illustration](./logo_alchemy.gif) -->
 
 Soluna is a Lisp dialect interpreted by OCaml.
