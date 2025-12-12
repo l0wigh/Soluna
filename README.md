@@ -23,11 +23,33 @@ Originaly made as a challenge in a challenge. I wanted to do a Lisp dialect in w
 
 You need to build the missing tools by yourself
 
+## What's to come ?
+
+I don't really know exactly what I'll want and what I'll do. Here is a list that I will follow (or not):
+
+- REPL
+- More highlevel functions (filter, fold, ...)
+- Sexp runtime reading functions
+- File reader (This would be specifically to help solving AoC problems)
+- Step by step debugger
+
+Again, most of this will never be made since it doesn't feel necessary to me.
+
+## Neovim automatic filetype on luna files
+
+```lua
+vim.cmd [[
+	autocmd BufNewFile,BufRead *.luna :set filetype=lisp
+]]
+```
+
+For vim, just takes what is inside the vim.cmd block
+
 ## The OCaml code is... interesting
 
 Yep, might be dirty. I'm not the best in this language, but it works really nice.
 
-I might want to clean the code, at some point. For now it works nice and I want to add some more stuff.
+I might want to clean the code, at some point. For now it works nice and I want to add some more stuff before.
 
 ## Other informations
 
