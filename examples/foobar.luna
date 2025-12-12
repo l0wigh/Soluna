@@ -1,0 +1,15 @@
+(function check_mod (val)
+	(if (= (mod val 5) 0)
+		(if (= (mod val 7) 0) "FooBar" "Foo")
+		(if (= (mod val 7) 0) "Bar" val)
+	)
+)
+
+(function foobar (start end)
+	(if (> start end)
+	  ()
+	  (do (writeln (check_mod start)) (foobar (+ start 1) end))
+	)
+)
+
+(foobar 1 100)

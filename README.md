@@ -27,6 +27,7 @@ You need to build the missing tools by yourself
 
 I don't really know exactly what I'll want and what I'll do. Here is a list that I will follow (or not):
 
+- Fix the slow 'cons' function
 - REPL
 - More highlevel functions (filter, fold, ...)
 - Sexp runtime reading functions
