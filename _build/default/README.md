@@ -1,10 +1,15 @@
-# Soluna 0.1.0
+# Soluna 0.1.1
 
-Soluna is a Lisp dialect interpreted by OCaml.
+<p align="center" width="100%">
+    <img src="https://raw.githubusercontent.com/l0wigh/Soluna/refs/heads/master/logo_alchemy.gif">
+</p>
+<!-- ![Alchemy illustration](./logo_alchemy.gif) -->
+
+Soluna is a Lisp dialect interpreted in OCaml.
 
 It does not aim to be perfect, to be accurate, to be easy to use. It aims to be my own Alchemy lab to invoke Gods and Space creatures.
 
-Originaly made as a challenge in a challenge. I wanted to do a Lisp dialect in which I solve at least one AoC (2025) problem.
+Originaly made as a challenge in a challenge. I wanted to do a Lisp dialect in which I would then solve at least one AoC (2025) problem.
 
 ## What's builtin ?
 
@@ -18,12 +23,35 @@ Originaly made as a challenge in a challenge. I wanted to do a Lisp dialect in w
 
 You need to build the missing tools by yourself
 
+## What's to come ?
+
+I don't really know exactly what I'll want and what I'll do. Here is a list that I will follow (or not):
+
+- Fix the slow 'cons' function
+- REPL
+- More high order functions (filter, fold, ...)
+- Sexp runtime reading functions
+- File reader (This would be specifically to help solving AoC problems)
+- Step by step debugger
+
+Again, most of this will never be made since it doesn't feel necessary to me.
+
+## Neovim automatic filetype on luna files
+
+```lua
+vim.cmd [[
+	autocmd BufNewFile,BufRead *.luna :set filetype=lisp
+]]
+```
+
+For vim, just takes what is inside the vim.cmd block
+
+## The OCaml code is... interesting
+
+Yep, might be dirty. I'm not the best in this language, but it works really nice.
+
+I might want to clean the code, at some point. For now it works nice and I want to add some more stuff before.
+
 ## Other informations
 
-There is some code example.
-
-File extension is luna.
-
-There is no comments.
-
-Good luck and have fun.
+There is some code example. File extension is luna. Good luck and have fun.
