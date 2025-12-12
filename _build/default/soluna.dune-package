@@ -1,4 +1,0 @@
-(lang dune 3.19)
-(name soluna)
-(sections (lib .) (bin ../../bin) (doc ../../doc/soluna))
-(files (lib (META dune-package opam)) (bin (soluna)) (doc (README.md)))

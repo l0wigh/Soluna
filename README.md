@@ -52,6 +52,13 @@ Yep, might be dirty. I'm not the best in this language, but it works really nice
 
 I might want to clean the code, at some point. For now it works nice and I want to add some more stuff before.
 
+## Build and run
+
+- build: `dune build`
+- run: `dune exec soluna`
+
+Binary file will be present in the `_build` directory
+
 ## Other informations
 
 There is some code example. File extension is luna. Good luck and have fun.
