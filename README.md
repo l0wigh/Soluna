@@ -29,7 +29,7 @@ I don't really know exactly what I'll want and what I'll do. Here is a list that
 
 - Fix the slow 'cons' function
 - REPL
-- More highlevel functions (filter, fold, ...)
+- More high order functions (filter, fold, ...)
 - Sexp runtime reading functions
 - File reader (This would be specifically to help solving AoC problems)
 - Step by step debugger
