@@ -5,11 +5,11 @@
 </p>
 <!-- ![Alchemy illustration](./logo_alchemy.gif) -->
 
-Soluna is a Lisp dialect interpreted by OCaml.
+Soluna is a Lisp dialect interpreted in OCaml.
 
 It does not aim to be perfect, to be accurate, to be easy to use. It aims to be my own Alchemy lab to invoke Gods and Space creatures.
 
-Originaly made as a challenge in a challenge. I wanted to do a Lisp dialect in which I solve at least one AoC (2025) problem.
+Originaly made as a challenge in a challenge. I wanted to do a Lisp dialect in which I would then solve at least one AoC (2025) problem.
 
 ## What's builtin ?
 
