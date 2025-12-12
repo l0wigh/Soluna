@@ -1,4 +1,6 @@
-# Soluna 0.1.0
+# Soluna 0.1.1
+
+![Alchemy illustration](./logo_alchemy.gif)
 
 Soluna is a Lisp dialect interpreted by OCaml.
 
@@ -18,12 +20,12 @@ Originaly made as a challenge in a challenge. I wanted to do a Lisp dialect in w
 
 You need to build the missing tools by yourself
 
+## The OCaml code is... interesting
+
+Yep, might be dirty. I'm not the best in this language, but it works really nice.
+
+I might want to clean the code, at some point. For now it works nice and I want to add some more stuff.
+
 ## Other informations
 
-There is some code example.
-
-File extension is luna.
-
-There is no comments.
-
-Good luck and have fun.
+There is some code example. File extension is luna. Good luck and have fun.
