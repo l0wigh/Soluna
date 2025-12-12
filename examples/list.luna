@@ -1,7 +1,9 @@
+; Function that will be called on lists
 (function add_ten (x) (+ x 10))
 (function zero? (x) (= x 0))
 (function even? (x) (zero? (mod x 2)))
 
+; Handmade filter function
 (function filter (pred lst)
 	(if (null lst)
 		(list)
@@ -15,6 +17,7 @@
 	)
 )
 
+; Original list and modified list created through the builtin map function
 (defvar origin (list 1 2 3 4))
 (defvar modified (map add_ten origin))
 
@@ -24,14 +27,14 @@
 (write "Modified (map) list: ")
 (writeln modified)
 
+; Using fst to get the first element of the list
 (write "\nFirst (fst) element of (list 1 2 3 4): ")
 (writeln (fst (list 1 2 3 4)))
 
+; Using rst to get the list without the first element of the list
 (write "Rest (rst) of (list 1 2 3 4): ")
 (writeln (rst (list 1 2 3 4)))
 
+; Apply even? function to all the list element and create an new list from it
 (write "Filter even number of (list 1 2 3 4): ")
 (writeln (filter even? (list 1 2 3 4)))
-
-(defvar origin (map add_ten origin))
-(writeln origin)

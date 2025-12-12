@@ -1,0 +1,7 @@
+; Basic program that show the printing capabilities of Soluna
+; write   -> will print something
+; writeln -> will print something and a new line
+; You can also use \n \t ... special char
+(write "Hello World from Soluna !\n")
+(write "4 - 2 = ") (writeln (- 4 2))
+(write "10 * (2 + 3) = ") (writeln (* 10 (+ 2 3)))

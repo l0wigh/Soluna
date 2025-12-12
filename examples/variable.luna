@@ -1,0 +1,2 @@
+; Simple variable example using the defvar builtin
+(defvar x 10) (write (+ 10 (+ x 1125)))

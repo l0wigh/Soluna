@@ -1,0 +1,5 @@
+; Simple if/else
+(defvar x 10)
+(defvar y 4)
+(writeln (if (> x 5) (* x 2) x))
+(writeln (if (> y 5) (* y 2) y))

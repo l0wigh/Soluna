@@ -1,0 +1,15 @@
+; This is a simple code to show the shadowing that occurs in Soluna
+; There is x = 10 which is global
+; There is x = 20 which is only defined in mutate function
+; The global x isn't changed even after redefinition in the function
+(defvar x 10)
+(function mutate ()
+	(do
+		(defvar x 20)
+		(write "Local x: ")
+		(writeln x)
+	)
+)
+(mutate)
+(write "Global x: ")
+(writeln x)

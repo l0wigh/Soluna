@@ -1,0 +1,2 @@
+; So basic, that I will not explain it with more than 3 words : reverse polish notation
+(write (* 10 (+ 2 3)))

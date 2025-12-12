@@ -6,3 +6,6 @@ lib: [
 bin: [
   "_build/install/default/bin/soluna"
 ]
+doc: [
+  "_build/install/default/doc/soluna/README.md"
+]

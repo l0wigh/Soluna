@@ -1,3 +1,4 @@
+; PGCD program to prove the turing-completness of Soluna
 (defvar pgcd (lambda (a b) (if (= b 0) a (pgcd b (mod a b)))))
 
 (write "PGCD(27, 18) = ")
@@ -5,5 +6,3 @@
 
 (write "PGCD(100, 30) = ")
 (writeln (pgcd 100 30))
-
-(writeln "\nIf results are 9 and 10, Soluna is Turing complet")

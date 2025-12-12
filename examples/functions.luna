@@ -1,3 +1,4 @@
+; Lambda function defined and saved using defvar
 (defvar lambda_loop (
 	lambda (counter limit)
 	(if (< counter limit)
@@ -6,6 +7,7 @@
 	)
 ))
 
+; Syntactic sugar for lambda functions, works like lambda but with a name defined to it
 (function sugar_loop (counter limit)
 	(if (< counter limit)
 		(do (writeln counter) (sugar_loop (+ counter 1) limit))
@@ -13,6 +15,7 @@
 	)
 )
 
+; Same loop, but hiding the counter
 (function sneaky_loop (counter limit)
 	(if (< counter limit)
 		(sneaky_loop (+ counter 1) limit)
@@ -20,6 +23,7 @@
 	)
 )
 
+; Advanced loop that takes a a function that will be called on loop elements
 (function advanced_loop (counter limit fun)
 	(if (< counter limit)
 		(do (fun counter) (advanced_loop (+ counter 1) limit fun))

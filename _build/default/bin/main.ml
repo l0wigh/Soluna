@@ -15,6 +15,12 @@ let rec soluna_get_string sexp str =
     | h :: t -> soluna_get_string t (str ^ String.make 1 h)
     | _ -> failwith "Soluna [ERROR]: String needs to be have \" around them"
 
+let rec soluna_skip_comment sexp =
+    match sexp with
+    | '\n' :: t -> t
+    | _ :: t -> soluna_skip_comment t
+    | [] -> sexp
+
 let rec soluna_tokenizer curr_token token_list sexp =
     match sexp with
     | [] -> List.rev (if curr_token != "" then (curr_token :: token_list) else token_list)
@@ -22,6 +28,7 @@ let rec soluna_tokenizer curr_token token_list sexp =
         match h with
         | ' ' | '\n' | '\r' | '\t' -> if curr_token != "" then soluna_tokenizer "" (curr_token :: token_list) t else soluna_tokenizer "" token_list t
         | '(' | ')' -> if curr_token != "" then soluna_tokenizer "" (String.make 1 h :: curr_token :: token_list) t else soluna_tokenizer "" (String.make 1 h :: token_list) t
+        | ';' -> soluna_skip_comment t |> soluna_tokenizer "" token_list
         | '"' -> begin
             let (str, next_sexp) = soluna_get_string t "\"" in
             soluna_tokenizer "" (str :: token_list) next_sexp

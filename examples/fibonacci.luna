@@ -1,3 +1,8 @@
+; Fibonacci is a good test to see if your language works.
+; Here is the implementation of it in Soluna
+
+; Fibonacci main loop
+; It uses an auxiliary function to work
 (function fibonacci (n)
 	(do
 		(function fib_aux (x acc1 acc2) 
@@ -7,6 +12,7 @@
 	)
 )
 
+; loop_fib will go through every fibonacci value from start to end
 (function loop_fib (start end)
 	(if (< start end)
 		(do (write (fibonacci start)) (write ", ") (loop_fib (+ start 1) end))
@@ -14,6 +20,7 @@
 	)
 )
 
+; Run the code
 (writeln "Fibonacci 1 -> 8")
 (writeln "----------------")
 (loop_fib 1 9)
