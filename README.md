@@ -11,6 +11,8 @@ It does not aim to be perfect, to be accurate, to be easy to use. It aims to be 
 
 Originaly made as a challenge in a challenge. I wanted to do a Lisp dialect in which I would then solve at least one AoC (2025) problem.
 
+The documentation can be found [here](https://github.com/l0wigh/Soluna/blob/master/DOCUMENTATION.md)
+
 ## What's builtin ?
 
 - lambda and function: functions is basically syntactic sugar for lambdas
@@ -54,10 +56,13 @@ I might want to clean the code, at some point. For now it works nice and I want 
 
 ## Build and run
 
+You need to install ocaml and dune. Look at the [official website](https://ocaml.org/install) to know how to install all this.
+
+You can then do :
 - build: `dune build`
 - run: `dune exec soluna`
 
-Binary file will be present in the `_build` directory
+Binary file will be present in the `_build` directory.
 
 ## Other informations
 
