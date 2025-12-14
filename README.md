@@ -21,7 +21,8 @@ The documentation can be found [here](https://github.com/l0wigh/Soluna/blob/mast
 - fst: gives you the first item of a list
 - rst: gives you the list without the first element
 - if: simple if else block
-- map: apply a function to a list to get a new function
+- map: apply a function to a list to get a new list
+- filter: apply a function that returns a boolean and create a function only with elements that output as true.
 
 You need to build the missing tools by yourself
 
