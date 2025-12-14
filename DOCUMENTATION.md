@@ -42,7 +42,8 @@ Builtin tools helps you do more stuff in an easier maner. Here is a list of what
 - lambda: `(lambda (arg1 arg2) (...))` this is the way to define anonymous functions.
 - function: `(function name (arg1 arg2) (...))` this is the way to define named functions. It's a syntactic sugar, for lambda functions.
 - if: `(if (= x 0) (writeln "True.") (writeln "False."))` very basic if/else setup.
-- do: `(do (writeln "multiple") (writeln "block of") (writeln "code"))` let you do multiple expression in one block without returning anything.
+- do: `(do (writeln "multiple") (writeln "block of") (writeln "code"))` let you evaluate multiple expressions sequentially and return the last expression value.
+- case: `(case ((condition) expression) ((condition) expression) ... (default expression))`: works like switch cases in C.
 - list: `(list 1 2 3 ...)` let you create a list of elements.
 - cons: `(cons element lst)` let you create a new list by adding an element at the beginning of a list.
 - fst: `(fst lst)` get the first element of a list.

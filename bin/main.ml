@@ -122,6 +122,7 @@ let soluna_apply_arithmetic art args =
 let rec soluna_eval sexp (env: env) =
     match sexp with
     | Number _  | Boolean _ -> sexp 
+    | List ((Symbol ("case", _) :: clauses), pos) -> soluna_eval_case clauses pos env
     | List ([Symbol ("defvar", _); Symbol (name, _); raw_val], pos) -> begin
         let bind = soluna_eval raw_val env in
         begin try
@@ -163,6 +164,19 @@ let rec soluna_eval sexp (env: env) =
     | String (s, pos) -> String (s, pos)
     | Symbol (s, pos) -> (try Hashtbl.find env s with | Not_found -> failwith (Printf.sprintf "Soluna [ERROR] L%d: Unbound symbol '%s'" pos.line s))
     | _ -> failwith "Soluna [ERROR]: soluna_eval is missing something"
+and soluna_eval_case clauses pos env =
+    match clauses with
+    | [] -> failwith (Printf.sprintf "Soluna [ERROR L%d: 'case' should have atlease one clause" pos.line)
+    | [List ([Symbol ("default", _); res_expr], _)] -> soluna_eval res_expr env
+    | List ([Symbol ("default", _); _], _) :: _ -> failwith (Printf.sprintf "Soluna [ERROR] L%d: 'default' case should be the last" pos.line)
+    | List ([test_expr; res_expr], _) :: rst_clauses -> begin
+        let eval = soluna_eval test_expr env in
+        match eval with
+        | Boolean (true, _) -> soluna_eval res_expr env
+        | Boolean (false, _) -> soluna_eval_case rst_clauses pos env
+        | _ -> failwith (Printf.sprintf "Soluna [ERROR] L%d: conditionnal expressions should return a Boolean" pos.line)
+    end
+        | _ -> failwith (Printf.sprintf "Soluna [ERROR] L%d: Invalid 'case' use. Need at least a default case" pos.line)
 and soluna_eval_list_form sexp env =
     match sexp with
     | List ((Symbol ("do", _) :: expr_list), _) -> soluna_eval_do expr_list env
