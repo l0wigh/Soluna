@@ -1,0 +1,3 @@
+(defvar x 276)
+(include "_include_child.luna")
+(child_fun x)

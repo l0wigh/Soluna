@@ -68,6 +68,8 @@ Obviously, there is some other predefined tools that are not that specific to So
 - num: `(num 1)` will tell you if an element is a number
 - Comparaison operators: `(< 2 3) (> 2 3) (= 2 3) (>= 2 3) (<= 2 3)` will return a boolean too
 
+You can split your code and use the `(include filename)` to load another file at runtime.
+
 Also you can comment your code using this format `; This is a line comment`.
 
 ## Parenthesis are hard to read

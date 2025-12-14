@@ -1,0 +1,5 @@
+(function child_fun (x) (do
+	(write x)
+	(write " + 10 = ")
+	(writeln (+ x 10))
+))

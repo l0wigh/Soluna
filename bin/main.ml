@@ -11,6 +11,71 @@ type env = (string, soluna_expr) Hashtbl.t
 type soluna_token = { token: string; pos: soluna_position }
 let unknown_pos = { line = 0; }
 
+let soluna_parse_atom ptoken =
+    let token = ptoken.token in
+    let pos = ptoken.pos in
+    match token with
+    | "true" -> Boolean (true, pos)
+    | "false" -> Boolean (false, pos)
+    | _ -> begin
+        if token.[0] = '\"' then
+            let string_split = String.split_on_char '"' token in
+            String ((List.nth string_split 1), pos)
+        else
+            try
+                Number ((int_of_string token), pos)
+            with
+            | Failure _ -> Symbol (token, pos)
+    end
+
+
+let rec soluna_read_tokens token_list =
+    match token_list with
+    | [] -> failwith (Printf.sprintf "Soluna [ERROR] L%d: Unexpected EOF" (List.hd token_list).pos.line)
+    | h :: t -> begin
+        let pos = h.pos in
+        match h.token with
+        | "(" -> begin
+            let (elements, rem_token) = soluna_read_list [] t in
+            (List (elements, pos), rem_token)
+        end
+        | ")" -> failwith (Printf.sprintf "Soluna [ERROR] L%d: Unexpected ')'" pos.line)
+        | _ -> begin
+            let atom = soluna_parse_atom h in
+            (atom, t)
+        end
+    end
+and soluna_read_list token_acc token_list =
+    match token_list with
+    | [] -> failwith "Soluna: List was not closed !"
+    | h :: t -> begin
+        match h.token with
+        | ")" -> (List.rev token_acc, t)
+        | _ -> begin
+            let (sexp, rem_tokens) = soluna_read_tokens (h :: t) in
+            soluna_read_list (sexp :: token_acc) rem_tokens
+        end
+    end
+
+
+let rec soluna_read_program tok_sexp tok_acc =
+    match tok_sexp with
+    | [] -> List.rev tok_acc
+    | h -> begin
+        let (found_tok, rem_tokens) = soluna_read_tokens h in
+        soluna_read_program rem_tokens (found_tok :: tok_acc)
+    end
+
+let soluna_read_file filename =
+    try
+        let ic = open_in filename in
+        let content = really_input_string ic (in_channel_length ic) in
+        close_in ic;
+        content
+    with
+    | Sys_error msg -> failwith (Printf.sprintf "Soluna [ERROR]: Cannot open or read file %s: %s" filename msg)
+    | e -> close_in_noerr (open_in filename); raise e
+
 let rec soluna_get_string sexp str =
     match sexp with
     | '"' :: t -> (str, t)
@@ -42,51 +107,6 @@ let rec soluna_tokenizer curr_token token_list sexp line =
             soluna_tokenizer "" ({token = str; pos = { line }} :: token_list) next_sexp line
         end
         | _ -> soluna_tokenizer (curr_token ^ String.make 1 h) token_list t line
-    end
-
-let soluna_parse_atom ptoken =
-    let token = ptoken.token in
-    let pos = ptoken.pos in
-    match token with
-    | "true" -> Boolean (true, pos)
-    | "false" -> Boolean (false, pos)
-    | _ -> begin
-        if token.[0] = '\"' then
-            let string_split = String.split_on_char '"' token in
-            String ((List.nth string_split 1), pos)
-        else
-            try
-                Number ((int_of_string token), pos)
-            with
-            | Failure _ -> Symbol (token, pos)
-    end
-
-let rec soluna_read_tokens token_list =
-    match token_list with
-    | [] -> failwith (Printf.sprintf "Soluna [ERROR] L%d: Unexpected EOF" (List.hd token_list).pos.line)
-    | h :: t -> begin
-        let pos = h.pos in
-        match h.token with
-        | "(" -> begin
-            let (elements, rem_token) = soluna_read_list [] t in
-            (List (elements, pos), rem_token)
-        end
-        | ")" -> failwith (Printf.sprintf "Soluna [ERROR] L%d: Unexpected ')'" pos.line)
-        | _ -> begin
-            let atom = soluna_parse_atom h in
-            (atom, t)
-        end
-    end
-and soluna_read_list token_acc token_list =
-    match token_list with
-    | [] -> failwith "Soluna: List was not closed !"
-    | h :: t -> begin
-        match h.token with
-        | ")" -> (List.rev token_acc, t)
-        | _ -> begin
-            let (sexp, rem_tokens) = soluna_read_tokens (h :: t) in
-            soluna_read_list (sexp :: token_acc) rem_tokens
-        end
     end
 
 let rec soluna_string_of_sexp sexp =
@@ -122,6 +142,7 @@ let soluna_apply_arithmetic art args =
 let rec soluna_eval sexp (env: env) =
     match sexp with
     | Number _  | Boolean _ -> sexp 
+    | List ([Symbol ("include", _); String (filename, _)], pos) -> soluna_include_file filename pos env
     | List ((Symbol ("case", _) :: clauses), pos) -> soluna_eval_case clauses pos env
     | List ([Symbol ("defvar", _); Symbol (name, _); raw_val], pos) -> begin
         let bind = soluna_eval raw_val env in
@@ -164,6 +185,18 @@ let rec soluna_eval sexp (env: env) =
     | String (s, pos) -> String (s, pos)
     | Symbol (s, pos) -> (try Hashtbl.find env s with | Not_found -> failwith (Printf.sprintf "Soluna [ERROR] L%d: Unbound symbol '%s'" pos.line s))
     | _ -> failwith "Soluna [ERROR]: soluna_eval is missing something"
+and soluna_include_file filename pos env =
+    try
+        let content = soluna_read_file filename in
+        let parsed_sexp = content
+        |> String.to_seq
+        |> List.of_seq
+        in
+        let tokenized = soluna_tokenizer "" [] parsed_sexp 1 in
+        let prog = soluna_read_program tokenized [] in
+        List.iter (fun sexp -> let _ = soluna_eval sexp env in ()) prog;
+        Symbol ("nil", pos)
+    with Sys_error msg -> failwith (Printf.sprintf "Soluna [ERROR] L%d: Cannot include file '%s' -> %s" pos.line filename msg)
 and soluna_eval_case clauses pos env =
     match clauses with
     | [] -> failwith (Printf.sprintf "Soluna [ERROR L%d: 'case' should have atlease one clause" pos.line)
@@ -174,7 +207,7 @@ and soluna_eval_case clauses pos env =
         match eval with
         | Boolean (true, _) -> soluna_eval res_expr env
         | Boolean (false, _) -> soluna_eval_case rst_clauses pos env
-        | _ -> failwith (Printf.sprintf "Soluna [ERROR] L%d: conditionnal expressions should return a Boolean" pos.line)
+        | _ -> failwith (Printf.sprintf "Soluna [ERROR] L%d: Conditionnal expressions should return a Boolean" pos.line)
     end
         | _ -> failwith (Printf.sprintf "Soluna [ERROR] L%d: Invalid 'case' use. Need at least a default case" pos.line)
 and soluna_eval_list_form sexp env =
@@ -376,24 +409,6 @@ let soluna_init_env () : env =
     Hashtbl.replace env "filter" (Primitive soluna_filter_primitive);
     Hashtbl.replace env "reverse" (Primitive soluna_reverse_primitive);
     env
-
-let rec soluna_read_program tok_sexp tok_acc =
-    match tok_sexp with
-    | [] -> List.rev tok_acc
-    | h -> begin
-        let (found_tok, rem_tokens) = soluna_read_tokens h in
-        soluna_read_program rem_tokens (found_tok :: tok_acc)
-    end
-
-let soluna_read_file filename =
-    try
-        let ic = open_in filename in
-        let content = really_input_string ic (in_channel_length ic) in
-        close_in ic;
-        content
-    with
-    | Sys_error msg -> failwith (Printf.sprintf "Soluna [ERROR]: Cannot open or read file %s: %s" filename msg)
-    | e -> close_in_noerr (open_in filename); raise e
 
 let () =
     try
