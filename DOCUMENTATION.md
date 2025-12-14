@@ -48,6 +48,7 @@ Builtin tools helps you do more stuff in an easier maner. Here is a list of what
 - fst: `(fst lst)` get the first element of a list.
 - rst: `(rst lst)` get the list without the first element.
 - map: `(map func lst)` will return a new list based on the result of the function applied to every element of the list.
+- filter: `(map func lst)` will return a new list containing only the elements that returns true inside the function passed in argument.
 - write: `(write "Hello World !")` will write the expression (not only string) passed in argument.
 - writeln: `(writeln "Hello World !")` same as before, but will add a newline char at the end.
 
@@ -62,6 +63,7 @@ Obviously, there is some other predefined tools that are not that specific to So
 - Mathematical operators: `(+ 2 3) (- 33 10) (* 5 10) (/ 10 2)` do I really need to explain what it does ?
 - Modulo: `(mod 10 5)` easy to understand too...
 - null: `(null lst)` will tell you if a list is empty (returns a boolean)
+- num: `(num 1)` will tell you if an element is a number
 - Comparaison operators: `(< 2 3) (> 2 3) (= 2 3) (>= 2 3) (<= 2 3)` will return a boolean too
 
 Also you can comment your code using this format `; This is a line comment`.
