@@ -77,7 +77,6 @@ let rec soluna_read_tokens token_list =
             (atom, t)
         end
     end
-
 and soluna_read_list token_acc token_list =
     match token_list with
     | [] -> failwith "Soluna: List was not closed !"
@@ -164,7 +163,6 @@ let rec soluna_eval sexp (env: env) =
     | String (s, pos) -> String (s, pos)
     | Symbol (s, pos) -> (try Hashtbl.find env s with | Not_found -> failwith (Printf.sprintf "Soluna [ERROR] L%d: Unbound symbol '%s'" pos.line s))
     | _ -> failwith "Soluna [ERROR]: soluna_eval is missing something"
-
 and soluna_eval_list_form sexp env =
     match sexp with
     | List ((Symbol ("do", _) :: expr_list), _) -> soluna_eval_do expr_list env
@@ -264,6 +262,13 @@ let soluna_null_primitive args =
     | [List ((_ :: _), pos)] -> Boolean (false, pos)
     | _ -> failwith (Printf.sprintf "Soluna [ERROR] L%d: 'null' requires one list argument" pos.line)
 
+let soluna_num_primitive args =
+    let pos = match args with [] -> unknown_pos | h :: _ -> soluna_get_pos h in
+    match args with
+    | [Number _] -> Boolean (true, pos)
+    | _ -> Boolean (false, pos)
+    (* | _ -> failwith (Printf.sprintf "Soluna [ERROR] L%d: 'num' requires one expression" pos.line) *)
+
 let soluna_cons_primitive args =
     let pos = match args with [] -> unknown_pos | h :: _ -> soluna_get_pos h in
     match args with
@@ -324,6 +329,7 @@ let soluna_init_env () : env =
     Hashtbl.replace env "null" (Primitive soluna_null_primitive);
     Hashtbl.replace env "cons" (Primitive soluna_cons_primitive);
     Hashtbl.replace env "map" (Primitive soluna_map_primitive);
+    Hashtbl.replace env "num" (Primitive soluna_num_primitive);
     env
 
 let rec soluna_read_program tok_sexp tok_acc =
