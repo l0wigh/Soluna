@@ -27,6 +27,9 @@
 (write "Modified (map) list: ")
 (writeln modified)
 
+(write "Reversed original list: ")
+(writeln (reverse origin))
+
 ; Using fst to get the first element of the list
 (write "\nFirst (fst) element of (list 1 2 3 4): ")
 (writeln (fst (list 1 2 3 4)))

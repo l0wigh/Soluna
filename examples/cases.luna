@@ -1,0 +1,12 @@
+(function check_sign (x) (case
+	((> x 0) "Positive")
+	((< x 0) "Negative")
+	(default "Zero")
+))
+
+(write "10 is ")
+(writeln (check_sign 10))
+(write "0 is ")
+(writeln (check_sign 0))
+(write "-10 is ")
+(writeln (check_sign -10))
