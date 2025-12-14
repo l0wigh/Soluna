@@ -228,7 +228,7 @@ let soluna_apply_comp op args =
     let pos = match args with [] -> unknown_pos | h :: _ -> soluna_get_pos h in
     match args with
     | [Number (a, _); Number (b, _)] -> Boolean ((op a b), unknown_pos)
-    | _ -> failwith (Printf.sprintf "Soluna [ERROR] L%d: Comparison requires exactly two numbers." pos.line)
+    | _ -> failwith (Printf.sprintf "Soluna [ERROR] L%d: Comparison requires exactly two numbers" pos.line)
 
 let soluna_apply_modulo args =
     let pos = match args with [] -> unknown_pos | h :: _ -> soluna_get_pos h in
@@ -267,7 +267,6 @@ let soluna_num_primitive args =
     match args with
     | [Number _] -> Boolean (true, pos)
     | _ -> Boolean (false, pos)
-    (* | _ -> failwith (Printf.sprintf "Soluna [ERROR] L%d: 'num' requires one expression" pos.line) *)
 
 let soluna_cons_primitive args =
     let pos = match args with [] -> unknown_pos | h :: _ -> soluna_get_pos h in
@@ -301,13 +300,37 @@ let soluna_map_primitive args =
                 let res_t_sexp = map_aux t in
                 match res_t_sexp with
                 | List (l, pos) -> List ((res_h :: l), pos)
-                | _ -> failwith "Soluna [INTERNAL]: map recursion broke (tail result was not a List)" 
+                | _ -> failwith "Soluna [INTERNAL]: map recursion broke (tail result was not a List)"
             end
         in
         map_aux lst
     end
-    | [_; _] -> failwith (Printf.sprintf "Soluna [ERROR] L%d: 'map' requires a function and a list (second argument must be a List)." pos.line)
-    | _ -> failwith (Printf.sprintf "Soluna [ERROR] L%d: 'map' requires exactly two arguments." pos.line)
+    | [_; _] -> failwith (Printf.sprintf "Soluna [ERROR] L%d: 'map' requires a function and a list (second argument must be a List)" pos.line)
+    | _ -> failwith (Printf.sprintf "Soluna [ERROR] L%d: 'map' requires exactly two arguments" pos.line)
+
+let soluna_filter_primitive args =
+    let pos = match args with [] -> unknown_pos | h :: _ -> soluna_get_pos h in
+    match args with
+    | [f; List (lst, p)] -> begin
+        let rec filter_aux curr_lst =
+            match curr_lst with
+            | [] -> List ([], p)
+            | h :: t -> begin
+                let res_h = soluna_map_lambda_to_sexp f h in
+                match res_h with
+                | Boolean (true, _) -> begin
+                    let res_t = filter_aux t in
+                    match res_t with
+                    | List (l, _) -> List ((h :: l), pos)
+                    | _ -> failwith "Soluna [INTERNAL]: filter recursion broke (tail result was not a List)"
+                end
+                | Boolean (false, _) -> filter_aux t
+                | _ -> failwith (Printf.sprintf "Soluna [ERROR] L%d: Functions passed to filter must return a Boolean" pos.line)
+            end
+        in
+        filter_aux lst
+    end
+    | _ -> failwith (Printf.sprintf "Soluna [ERROR] L%d: 'filter' requires exactly a function and a list" pos.line)
 
 let soluna_init_env () : env =
     let env = Hashtbl.create 20 in 
@@ -330,6 +353,7 @@ let soluna_init_env () : env =
     Hashtbl.replace env "cons" (Primitive soluna_cons_primitive);
     Hashtbl.replace env "map" (Primitive soluna_map_primitive);
     Hashtbl.replace env "num" (Primitive soluna_num_primitive);
+    Hashtbl.replace env "filter" (Primitive soluna_filter_primitive);
     env
 
 let rec soluna_read_program tok_sexp tok_acc =
