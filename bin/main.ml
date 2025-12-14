@@ -332,6 +332,12 @@ let soluna_filter_primitive args =
     end
     | _ -> failwith (Printf.sprintf "Soluna [ERROR] L%d: 'filter' requires exactly a function and a list" pos.line)
 
+let soluna_reverse_primitive args =
+    let pos = match args with [] -> unknown_pos | h :: _ -> soluna_get_pos h in
+    match args with
+    | [List (h, p)] -> List (List.rev h, p)
+    | _ -> failwith (Printf.sprintf "Soluna [ERROR] L%d: 'reverse' takes a list as argument" pos.line)
+
 let soluna_init_env () : env =
     let env = Hashtbl.create 20 in 
     Hashtbl.replace env "+" (Primitive (soluna_apply_arithmetic (+))); 
@@ -354,6 +360,7 @@ let soluna_init_env () : env =
     Hashtbl.replace env "map" (Primitive soluna_map_primitive);
     Hashtbl.replace env "num" (Primitive soluna_num_primitive);
     Hashtbl.replace env "filter" (Primitive soluna_filter_primitive);
+    Hashtbl.replace env "reverse" (Primitive soluna_reverse_primitive);
     env
 
 let rec soluna_read_program tok_sexp tok_acc =

@@ -47,6 +47,7 @@ Builtin tools helps you do more stuff in an easier maner. Here is a list of what
 - cons: `(cons element lst)` let you create a new list by adding an element at the beginning of a list.
 - fst: `(fst lst)` get the first element of a list.
 - rst: `(rst lst)` get the list without the first element.
+- reverse: `(reverse lst)` reverse the list.
 - map: `(map func lst)` will return a new list based on the result of the function applied to every element of the list.
 - filter: `(map func lst)` will return a new list containing only the elements that returns true inside the function passed in argument.
 - write: `(write "Hello World !")` will write the expression (not only string) passed in argument.
