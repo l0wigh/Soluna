@@ -5,3 +5,7 @@
 (write "Hello World from Soluna !\n")
 (write "4 - 2 = ") (writeln (- 4 2))
 (write "10 * (2 + 3) = ") (writeln (* 10 (+ 2 3)))
+
+; Here you can see how you can check if a string is empty by using explode which create a list
+(write "Is 'hello' an empty string ? ") (writeln (null (explode "hello")))
+(write "Is '' an empty string ? ") (writeln (null (explode "")))

@@ -338,7 +338,8 @@ let soluna_null_primitive args =
     match args with
     | [List ([], pos)] -> Boolean (true, pos)
     | [List ((_ :: _), pos)] -> Boolean (false, pos)
-    | _ -> failwith (Printf.sprintf "Soluna [%s] %s:%d%s -> 'null' requires one list argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+    | [Hashmap (h, pos)] -> if Hashtbl.length h = 0 then Boolean (true, pos) else Boolean (false, pos)
+    | _ -> failwith (Printf.sprintf "Soluna [%s] %s:%d%s -> 'null' requires a list or a dictionnary argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
 
 let soluna_num_primitive args =
     let pos = soluna_token_pos args in

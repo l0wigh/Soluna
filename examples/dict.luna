@@ -19,3 +19,8 @@
 (writeln address-book)
 (write "Is Alice still in the dictionnary: ") (writeln (dict-contains address-book "Alice"))
 
+(writeln "")
+(write "Is dictionnary empty: ") (writeln (null address-book))
+(writeln "Removing Neo...")
+(dict-remove address-book "Neo")
+(write "Is dictionnary empty: ") (writeln (null address-book))
