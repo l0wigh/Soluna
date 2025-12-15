@@ -1,0 +1,7 @@
+(defvar address-book (dict 10))
+
+(dict-set address-book "Alice" "alice@wonderland.com")
+(dict-set address-book "Neo" "neo@matrix.com")
+(writeln (dict-get address-book "Alice"))
+(writeln (dict-ref address-book "Azucena" "azucena@ortizcoff.ee"))
+(writeln address-book)

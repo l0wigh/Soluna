@@ -403,33 +403,33 @@ let soluna_reverse_primitive args =
     | [List (h, p)] -> List (List.rev h, p)
     | _ -> failwith (Printf.sprintf "Soluna [ERROR] L%d: 'reverse' takes a list as argument" pos.line)
 
-let soluna_hashmap_primitive args =
+let soluna_dict_primitive args =
     match args with
     | [Number (s, pos)] -> begin
         let new_map = Hashtbl.create s in
         Hashmap (new_map, pos)
     end
-    | _ -> failwith "Soluna [ERROR]: 'hashmap' requires a size argument"
+    | _ -> failwith "Soluna [ERROR]: 'dict' requires a size argument"
 
-let soluna_hashmap_set_primitive args =
+let soluna_dict_set_primitive args =
     match args with
     | [Hashmap (h, _); String (key, _); value_sexp] -> begin
         Hashtbl.replace h key value_sexp;
         value_sexp
     end
-    | _ -> failwith "Soluna [ERROR] 'map-set' requires a key and a value"
+    | _ -> failwith "Soluna [ERROR] 'dict-set' requires a key and a value"
 
-let soluna_hashmap_get_primitive args =
+let soluna_dict_get_primitive args =
     match args with
     | [Hashmap (h, pos); String (key, _)] -> begin
         try
             Hashtbl.find h key
         with Not_found ->
-            failwith (Printf.sprintf "Soluna [ERROR] L%d: Key '%s' not found in hashmap" pos.line key)
+            failwith (Printf.sprintf "Soluna [ERROR] L%d: Key '%s' not found in dictionnary" pos.line key)
     end
-    | _ -> failwith "Soluna [ERROR]: 'map-get' requires a map and a key"
+    | _ -> failwith "Soluna [ERROR]: 'dict-get' requires a dictionnary and a key"
 
-let soluna_hashmap_ref_primitive args =
+let soluna_dict_ref_primitive args =
     let pos = match args with [] -> unknown_pos | h :: _ -> soluna_get_pos h in
     match args with
     | [Hashmap (h, _); String (key, _); default] -> begin
@@ -437,7 +437,7 @@ let soluna_hashmap_ref_primitive args =
             Hashtbl.find h key
         with Not_found -> default
     end
-    | _ -> failwith (Printf.sprintf "Soluna [ERROR] L%d: 'hashmap-ref' requires a map, a key and a default value" pos.line)
+    | _ -> failwith (Printf.sprintf "Soluna [ERROR] L%d: 'dict-ref' requires a dictionnary, a key and a default value" pos.line)
 
 let soluna_explode_primitive args =
     let pos = match args with [] -> unknown_pos | h :: _ -> soluna_get_pos h in
@@ -474,10 +474,10 @@ let soluna_init_env () : env =
     Hashtbl.replace env "filter" (Primitive soluna_filter_primitive);
     Hashtbl.replace env "reverse" (Primitive soluna_reverse_primitive);
     Hashtbl.replace env "explode" (Primitive soluna_explode_primitive);
-    Hashtbl.replace env "hashmap" (Primitive soluna_hashmap_primitive);
-    Hashtbl.replace env "hashmap-set" (Primitive soluna_hashmap_set_primitive);
-    Hashtbl.replace env "hashmap-get" (Primitive soluna_hashmap_get_primitive);
-    Hashtbl.replace env "hashmap-ref" (Primitive soluna_hashmap_ref_primitive);
+    Hashtbl.replace env "dict" (Primitive soluna_dict_primitive);
+    Hashtbl.replace env "dict-set" (Primitive soluna_dict_set_primitive);
+    Hashtbl.replace env "dict-get" (Primitive soluna_dict_get_primitive);
+    Hashtbl.replace env "dict-ref" (Primitive soluna_dict_ref_primitive);
     env
 
 let () =
