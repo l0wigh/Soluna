@@ -252,7 +252,7 @@ and soluna_eval_each var_name lst_sexp body_sexp env pos =
     end
     | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Sequence argument in 'each' should be a list" error_msg (font_blue ^ pos.filename) pos.line font_rst)
 and soluna_include_file filename pos env =
-    let current_dir = dirname (font_blue ^ pos.filename) in
+    let current_dir = dirname pos.filename in
     let path = concat current_dir filename in
     try
         let content = soluna_read_file path in
