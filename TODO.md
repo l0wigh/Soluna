@@ -1,0 +1,2 @@
+- Add documentation for hashmaps
+- Add a way to iterate on hashmaps
