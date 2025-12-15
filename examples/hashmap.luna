@@ -1,0 +1,7 @@
+(defvar address-book (hashmap 10))
+
+(hashmap-set address-book "Alice" "alice@wonderland.com")
+(hashmap-set address-book "Neo" "neo@matrix.com")
+(writeln (hashmap-get address-book "Alice"))
+(writeln (hashmap-ref address-book "Azucena" "azucena@ortizcoff.ee"))
+(writeln address-book)

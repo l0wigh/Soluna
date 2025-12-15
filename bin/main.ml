@@ -6,6 +6,7 @@ type soluna_expr =
     | List of soluna_expr list * soluna_position
     | String of string * soluna_position
     | Primitive of (soluna_expr list -> soluna_expr)
+    | Hashmap of (string, soluna_expr) Hashtbl.t * soluna_position
     | Lambda of string list * soluna_expr * (string, soluna_expr) Hashtbl.t
 type env = (string, soluna_expr) Hashtbl.t
 type soluna_token = { token: string; pos: soluna_position }
@@ -85,7 +86,7 @@ let rec soluna_get_string sexp str =
 let soluna_get_pos sexp =
     match sexp with
     | Number (_, pos) | Symbol (_, pos) | Boolean (_, pos) | String (_, pos) | List (_, pos) -> pos
-    | Primitive _ | Lambda _ -> unknown_pos
+    | Primitive _ | Lambda _ | Hashmap _ -> unknown_pos
 
 let rec soluna_skip_comment sexp =
     match sexp with
@@ -111,6 +112,18 @@ let rec soluna_tokenizer curr_token token_list sexp line =
 
 let rec soluna_string_of_sexp sexp =
   match sexp with
+  | Hashmap (h, _) -> begin
+      let buffer = Buffer.create 100 in
+      Buffer.add_string buffer "{";
+      Hashtbl.iter (fun key value ->
+          let val_str = soluna_string_of_sexp value in
+          Buffer.add_string buffer (Printf.sprintf "\"%s\": %s, " key val_str)
+      ) h;
+      let output = Buffer.contents buffer in
+      if String.length output > 1 then
+          String.sub output 0 (String.length output - 2) ^ "}"
+      else "{}"
+  end
   | Number (n, _) -> Printf.sprintf "%d" n
   | Symbol (s, _) -> s
   | Boolean (b, _) -> if b then "true" else "false"
@@ -385,6 +398,42 @@ let soluna_reverse_primitive args =
     | [List (h, p)] -> List (List.rev h, p)
     | _ -> failwith (Printf.sprintf "Soluna [ERROR] L%d: 'reverse' takes a list as argument" pos.line)
 
+let soluna_hashmap_primitive args =
+    match args with
+    | [Number (s, pos)] -> begin
+        let new_map = Hashtbl.create s in
+        Hashmap (new_map, pos)
+    end
+    | _ -> failwith "Soluna [ERROR]: 'hashmap' requires a size argument"
+
+let soluna_hashmap_set_primitive args =
+    match args with
+    | [Hashmap (h, _); String (key, _); value_sexp] -> begin
+        Hashtbl.replace h key value_sexp;
+        value_sexp
+    end
+    | _ -> failwith "Soluna [ERROR] 'map-set' requires a key and a value"
+
+let soluna_hashmap_get_primitive args =
+    match args with
+    | [Hashmap (h, pos); String (key, _)] -> begin
+        try
+            Hashtbl.find h key
+        with Not_found ->
+            failwith (Printf.sprintf "Soluna [ERROR] L%d: Key '%s' not found in hashmap" pos.line key)
+    end
+    | _ -> failwith "Soluna [ERROR]: 'map-get' requires a map and a key"
+
+let soluna_hashmap_ref_primitive args =
+    let pos = match args with [] -> unknown_pos | h :: _ -> soluna_get_pos h in
+    match args with
+    | [Hashmap (h, _); String (key, _); default] -> begin
+        try
+            Hashtbl.find h key
+        with Not_found -> default
+    end
+    | _ -> failwith (Printf.sprintf "Soluna [ERROR] L%d: 'hashmap-ref' requires a map, a key and a default value" pos.line)
+
 let soluna_init_env () : env =
     let env = Hashtbl.create 20 in 
     Hashtbl.replace env "+" (Primitive (soluna_apply_arithmetic (+))); 
@@ -408,6 +457,10 @@ let soluna_init_env () : env =
     Hashtbl.replace env "num" (Primitive soluna_num_primitive);
     Hashtbl.replace env "filter" (Primitive soluna_filter_primitive);
     Hashtbl.replace env "reverse" (Primitive soluna_reverse_primitive);
+    Hashtbl.replace env "hashmap" (Primitive soluna_hashmap_primitive);
+    Hashtbl.replace env "hashmap-set" (Primitive soluna_hashmap_set_primitive);
+    Hashtbl.replace env "hashmap-get" (Primitive soluna_hashmap_get_primitive);
+    Hashtbl.replace env "hashmap-ref" (Primitive soluna_hashmap_ref_primitive);
     env
 
 let () =

@@ -1,0 +1,18 @@
+(function fib (n) (do
+	(case
+		((= n 0) 0)
+		((= n 1) 1)
+		(default (+ (fib (- n 1)) (fib (- n 2))))
+	)
+))
+
+(function fib-iter (n a b) (
+	case
+		((= n 0) a)
+		(default (fib-iter (- n 1) b (+ a b)))
+))
+
+(write "Recursive fibonacci (slow)... ")
+(writeln (fib 33))
+(write "Tail recursive fibonacci (fast !)... ")
+(writeln (fib-iter 33 0 1))
