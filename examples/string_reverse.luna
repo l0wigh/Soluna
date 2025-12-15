@@ -1,0 +1,4 @@
+(defvar name "...anuloS gnisu slleps gnitsac yltnerruC")
+(write "Original string: ") (writeln name)
+(write "Reversed string: ") (writeln (implode (reverse (explode name))))
+(write "Pretty easy right ? ") (writeln (implode (reverse (explode "Pretty easy right ?"))))

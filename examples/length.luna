@@ -1,0 +1,11 @@
+(write "Length of 'Hello World': ")
+(writeln (length "Hello World"))
+(write "Length of (list 1 2 3 4): ")
+(writeln (length (list 1 2 3 4)))
+
+(write "Length of x: ")
+(defvar x "Soluna")
+(defvar y 8)
+(writeln (length x))
+(write "Length of y which is a number will create an error...")
+(writeln (length y))

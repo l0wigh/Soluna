@@ -1,0 +1,7 @@
+(function palindrome_checker (word)
+	(if (= word (implode (reverse (explode word))))
+	  (do (write word) (writeln " is a palindrome"))
+	  (do (write word) (writeln " is not a palindrome"))))
+
+(palindrome_checker "kayak")
+(palindrome_checker "Soluna")

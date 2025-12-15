@@ -9,3 +9,7 @@
 ; Here you can see how you can check if a string is empty by using explode which create a list
 (write "Is 'hello' an empty string ? ") (writeln (null (explode "hello")))
 (write "Is '' an empty string ? ") (writeln (null (explode "")))
+(defvar stringtoexplode "Exploded!")
+(write "You can also explode a variable ! -> ") (writeln (explode stringtoexplode))
+(defvar explodedstring (explode stringtoexplode))
+(write "And yes, you can implode string: ") (writeln (implode explodedstring))
