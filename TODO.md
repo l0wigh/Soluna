@@ -1,3 +1,1 @@
-- Add documentation for hashmaps
-- Add documentation for explode
-- Add a way to iterate on hashmaps
+- Add a way to iterate on dict

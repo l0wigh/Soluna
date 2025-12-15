@@ -51,8 +51,13 @@ Builtin tools helps you do more stuff in an easier maner. Here is a list of what
 - reverse: `(reverse lst)` reverse the list.
 - map: `(map func lst)` will return a new list based on the result of the function applied to every element of the list.
 - filter: `(map func lst)` will return a new list containing only the elements that returns true inside the function passed in argument.
+- dict: `(dict size)` create a dictionnary (hashmap) with the specified size.
+- dict-set: `(dict-set dictionnary key value)` will bind a key and a value in a dictionnary.
+- dict-get: `(dict-get dictionnary key)` returns the value associated with a key.
+- dict-ref: `(dict-get dictionnary key default)` returns the value associated with a key or the default value.
 - write: `(write "Hello World !")` will write the expression (not only string) passed in argument.
 - writeln: `(writeln "Hello World !")` same as before, but will add a newline char at the end.
+- explode: `(explode "string")` create a list of chars from a string
 
 And that's it. Missing filter ? Implement it manually. Missing sqrt ? Implement it manually.
 
