@@ -7,3 +7,9 @@
 
 (each c (rst (explode name))
 	 (writeln c))
+
+(defvar mydict (dict 20))
+(defvar x 0)
+(each c (explode name)
+	  (do (dict-set mydict c x) (defvar x (+ x 1))))
+(writeln mydict)

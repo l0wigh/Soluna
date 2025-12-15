@@ -1,0 +1,18 @@
+(defvar start 1)
+(defvar end 11)
+
+(while (< start end) (do (writeln start) (defvar start (+ start 1))))
+(write "No shadowing here -> start value after loop: ")
+(writeln start)
+
+(defvar start 1)
+(defvar newlst (list))
+
+(while (< start end)
+	(do
+		(defvar newlst (cons start newlst))
+		(defvar start (+ start 1))
+	)
+)
+(defvar newlst (reverse newlst))
+(writeln newlst)
