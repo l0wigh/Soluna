@@ -1,0 +1,13 @@
+(function calc_isbn (isbn mode acc) (do
+	(case
+		((null isbn) (- 10 (mod acc 10)))
+		((= mode 1) (calc_isbn (rst isbn) 3 (+ acc (* (fst isbn) mode))))
+		(default (calc_isbn (rst isbn) 1 (+ acc (* (fst isbn) mode))))
+	)
+))
+
+(writeln (calc_isbn (list 9 7 8 0 4 7 0 0 5 9 0 2 9) 1 0))
+(writeln (calc_isbn (list 9 7 8 0 4 7 1 4 8 6 4 8 0) 1 0))
+(writeln (calc_isbn (list 9 7 8 0 5 9 6 8 0 9 4 8 5) 1 0))
+(writeln (calc_isbn (list 9 7 8 0 1 3 1 4 9 5 0 5 0) 1 0))
+(writeln (calc_isbn (list 9 7 8 0 2 6 2 1 3 4 7 2 9) 1 0))
