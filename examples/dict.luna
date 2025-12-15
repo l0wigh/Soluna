@@ -2,6 +2,20 @@
 
 (dict-set address-book "Alice" "alice@wonderland.com")
 (dict-set address-book "Neo" "neo@matrix.com")
+
 (writeln (dict-get address-book "Alice"))
 (writeln (dict-ref address-book "Azucena" "azucena@ortizcoff.ee"))
 (writeln address-book)
+
+(writeln "")
+(write "Keys: ") (writeln (dict-keys address-book))
+(write "Values: ") (writeln (dict-values address-book))
+(writeln "")
+
+(writeln "Changing Neo address...")
+(dict-set address-book "Neo" "neo@outofmatrix.com")
+(writeln "Removing Alice...")
+(dict-remove address-book "Alice")
+(writeln address-book)
+(write "Is Alice still in the dictionnary: ") (writeln (dict-contains address-book "Alice"))
+

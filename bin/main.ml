@@ -94,6 +94,11 @@ let soluna_get_pos sexp =
     | Number (_, pos) | Symbol (_, pos) | Boolean (_, pos) | String (_, pos) | List (_, pos) -> pos
     | Primitive _ | Lambda _ | Hashmap _ -> unknown_pos
 
+let soluna_token_pos args =
+    match args with
+    | [] -> unknown_pos
+    | h :: _ -> soluna_get_pos h
+
 let rec soluna_skip_comment sexp =
     match sexp with
     | '\n' :: t -> t
@@ -280,7 +285,7 @@ let soluna_write_string s =
     loop 0
 
 let soluna_write_expression mode args =
-    let pos = match args with [] -> unknown_pos | h :: _ -> soluna_get_pos h in
+    let pos = soluna_token_pos args in
     match args with
     | [sexp] -> begin
         let output = match sexp with
@@ -293,7 +298,7 @@ let soluna_write_expression mode args =
     | _ -> failwith (Printf.sprintf "Soluna [%s] %s:%d%s -> 'write' requires exactly one argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
 
 let soluna_apply_comp op args =
-    let pos = match args with [] -> unknown_pos | h :: _ -> soluna_get_pos h in
+    let pos = soluna_token_pos args in
     match args with
     | [Number (a, _); Number (b, _)] -> Boolean ((op a b), pos)
     | [String (a, _); String (b, _)] -> begin 
@@ -304,7 +309,7 @@ let soluna_apply_comp op args =
     | _ -> failwith (Printf.sprintf "Soluna [%s] %s:%d%s -> Comparison requires two arguments of the same type (string or int)" error_msg (font_blue ^ pos.filename) pos.line font_rst)
 
 let soluna_apply_modulo args =
-    let pos = match args with [] -> unknown_pos | h :: _ -> soluna_get_pos h in
+    let pos = soluna_token_pos args in
     match args with
     | [Number (a, _); Number (b, _)] -> begin 
         if b = 0 then failwith (Printf.sprintf "Soluna [%s] %s:%d%s -> Division by zero" error_msg (font_blue ^ pos.filename) pos.line font_rst)
@@ -315,34 +320,34 @@ let soluna_apply_modulo args =
 let soluna_list_primitive args = List (args, unknown_pos)
 
 let soluna_fst_primitive args =
-    let pos = match args with [] -> unknown_pos | h :: _ -> soluna_get_pos h in
+    let pos = soluna_token_pos args in
     match args with
     | [List ((h :: _), _)] -> h
     | [List ([], pos)] -> failwith (Printf.sprintf "Soluna [%s] %s:%d%s -> 'fst' called on empty list" error_msg (font_blue ^ pos.filename) pos.line font_rst)
     | _ -> failwith (Printf.sprintf "Soluna [%s] %s:%d%s -> 'fst' requires exactly one list as argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
 
 let soluna_rst_primitive args =
-    let pos = match args with [] -> unknown_pos | h :: _ -> soluna_get_pos h in
+    let pos = soluna_token_pos args in
     match args with
     | [List ((_ :: t), pos)] -> List (t, pos)
     | [List ([], pos)] -> failwith (Printf.sprintf "Soluna [%s] %s:%d%s -> 'rst' called on empty list" error_msg (font_blue ^ pos.filename) pos.line font_rst)
     | _ -> failwith (Printf.sprintf "Soluna [%s] %s:%d%s -> 'rst' requires exactly one list as argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
 
 let soluna_null_primitive args =
-    let pos = match args with [] -> unknown_pos | h :: _ -> soluna_get_pos h in
+    let pos = soluna_token_pos args in
     match args with
     | [List ([], pos)] -> Boolean (true, pos)
     | [List ((_ :: _), pos)] -> Boolean (false, pos)
     | _ -> failwith (Printf.sprintf "Soluna [%s] %s:%d%s -> 'null' requires one list argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
 
 let soluna_num_primitive args =
-    let pos = match args with [] -> unknown_pos | h :: _ -> soluna_get_pos h in
+    let pos = soluna_token_pos args in
     match args with
     | [Number _] -> Boolean (true, pos)
     | _ -> Boolean (false, pos)
 
 let soluna_cons_primitive args =
-    let pos = match args with [] -> unknown_pos | h :: _ -> soluna_get_pos h in
+    let pos = soluna_token_pos args in
     match args with
     | [h; List (t, pos)] -> List ((h :: t), pos)
     | [_; _] -> failwith (Printf.sprintf "Soluna [%s] %s:%d%s -> 'cons' requires a list as its second argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
@@ -362,7 +367,7 @@ let soluna_map_lambda_to_sexp lambda sexp =
     | _ -> failwith (Printf.sprintf "Soluna [%s] -> First argument to 'map' must be a function" error_msg)
 
 let soluna_map_primitive args =
-    let pos = match args with [] -> unknown_pos | h :: _ -> soluna_get_pos h in
+    let pos = soluna_token_pos args in
     match args with
     | [f; List (lst, pos)] -> begin
         let rec map_aux curr_lst =
@@ -382,7 +387,7 @@ let soluna_map_primitive args =
     | _ -> failwith (Printf.sprintf "Soluna [%s] %s:%d%s -> 'map' requires exactly two arguments" error_msg (font_blue ^ pos.filename) pos.line font_rst)
 
 let soluna_filter_primitive args =
-    let pos = match args with [] -> unknown_pos | h :: _ -> soluna_get_pos h in
+    let pos = soluna_token_pos args in
     match args with
     | [f; List (lst, p)] -> begin
         let rec filter_aux curr_lst =
@@ -406,28 +411,31 @@ let soluna_filter_primitive args =
     | _ -> failwith (Printf.sprintf "Soluna [%s] %s:%d%s -> 'filter' requires exactly a function and a list" error_msg (font_blue ^ pos.filename) pos.line font_rst)
 
 let soluna_reverse_primitive args =
-    let pos = match args with [] -> unknown_pos | h :: _ -> soluna_get_pos h in
+    let pos = soluna_token_pos args in
     match args with
     | [List (h, p)] -> List (List.rev h, p)
     | _ -> failwith (Printf.sprintf "Soluna [%s] %s:%d%s -> 'reverse' takes a list as argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
 
 let soluna_dict_primitive args =
+    let pos = soluna_token_pos args in
     match args with
     | [Number (s, pos)] -> begin
         let new_map = Hashtbl.create s in
         Hashmap (new_map, pos)
     end
-    | _ -> failwith (Printf.sprintf "Soluna [%s] -> 'dict' requires a size argument" error_msg)
+    | _ -> failwith (Printf.sprintf "Soluna [%s] %s:%d%s -> 'dict' requires a size argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
 
 let soluna_dict_set_primitive args =
+    let pos = soluna_token_pos args in
     match args with
     | [Hashmap (h, _); String (key, _); value_sexp] -> begin
         Hashtbl.replace h key value_sexp;
         value_sexp
     end
-    | _ -> failwith (Printf.sprintf "Soluna [%s] 'dict-set' requires a key and a value" error_msg)
+    | _ -> failwith (Printf.sprintf "Soluna [%s] %s:%d%s -> 'dict-set' requires a key and a value" error_msg (font_blue ^ pos.filename) pos.line font_rst)
 
 let soluna_dict_get_primitive args =
+    let pos = soluna_token_pos args in
     match args with
     | [Hashmap (h, pos); String (key, _)] -> begin
         try
@@ -435,10 +443,10 @@ let soluna_dict_get_primitive args =
         with Not_found ->
             failwith (Printf.sprintf "Soluna [%s] %s:%d%s -> Key '%s' not found in dictionnary" error_msg (font_blue ^ pos.filename) pos.line key font_rst)
     end
-    | _ -> failwith (Printf.sprintf "Soluna [%s] -> 'dict-get' requires a dictionnary and a key" error_msg)
+    | _ -> failwith (Printf.sprintf "Soluna [%s] %s:%d%s -> 'dict-get' requires a dictionnary and a key" error_msg (font_blue ^ pos.filename) pos.line font_rst)
 
 let soluna_dict_ref_primitive args =
-    let pos = match args with [] -> unknown_pos | h :: _ -> soluna_get_pos h in
+    let pos = soluna_token_pos args in
     match args with
     | [Hashmap (h, _); String (key, _); default] -> begin
         try
@@ -448,7 +456,7 @@ let soluna_dict_ref_primitive args =
     | _ -> failwith (Printf.sprintf "Soluna [%s] %s:%d%s -> 'dict-ref' requires a dictionnary, a key and a default value" error_msg (font_blue ^ pos.filename) pos.line font_rst)
 
 let soluna_explode_primitive args =
-    let pos = match args with [] -> unknown_pos | h :: _ -> soluna_get_pos h in
+    let pos = soluna_token_pos args in
     match args with
     | [String (s, p)] -> begin
         let res = String.to_seq s
@@ -457,6 +465,37 @@ let soluna_explode_primitive args =
         List (res, pos)
     end
     | _ -> failwith (Printf.sprintf "Soluna [%s] %s:%d%s -> 'explode' requires a string as argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+
+let soluna_dict_keys_primitive args =
+    let pos = soluna_token_pos args in
+    match args with
+    | [Hashmap (h, p)] -> List (List.rev (Hashtbl.fold (fun k _ acc -> String (k, p) :: acc) h []), p)
+    | _ -> failwith (Printf.sprintf "Soluna [%s] %s:%d%s -> 'dict-keys' requires a valid dictionnary" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+
+let soluna_dict_values_primitive args =
+    let pos = soluna_token_pos args in
+    match args with
+    | [Hashmap (h, p)] -> List (List.rev (Hashtbl.fold (fun _ v acc -> v :: acc) h []), p)
+    | _ -> failwith (Printf.sprintf "Soluna [%s] %s:%d%s -> 'dict-values' requires a valid dictionnary" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+
+let soluna_dict_remove_primitive args =
+    let pos = soluna_token_pos args in
+    match args with
+    | [Hashmap (h, p); String (key, _)] -> begin
+        Hashtbl.remove h key;
+        Symbol ("nil", p)
+    end
+    | _ -> failwith (Printf.sprintf "Soluna [%s] %s:%d%s -> 'dict-remove' requires a dictionnary and a key as arguments" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+
+let soluna_dict_contains_primitive args =
+    let pos = soluna_token_pos args in
+    match args with
+    | [Hashmap (h, p); String (key, _)] -> begin
+        let found = Hashtbl.mem h key in
+        Boolean (found, p)
+    end
+    | _ -> failwith (Printf.sprintf "Soluna [%s] %s:%d%s -> 'dict-contains' requires a dictionnary and a key as arguments" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+
 let soluna_init_env () : env =
     let env = Hashtbl.create 20 in 
     Hashtbl.replace env "+" (Primitive (soluna_apply_arithmetic (+))); 
@@ -485,6 +524,10 @@ let soluna_init_env () : env =
     Hashtbl.replace env "dict-set" (Primitive soluna_dict_set_primitive);
     Hashtbl.replace env "dict-get" (Primitive soluna_dict_get_primitive);
     Hashtbl.replace env "dict-ref" (Primitive soluna_dict_ref_primitive);
+    Hashtbl.replace env "dict-keys" (Primitive soluna_dict_keys_primitive);
+    Hashtbl.replace env "dict-values" (Primitive soluna_dict_values_primitive);
+    Hashtbl.replace env "dict-remove" (Primitive soluna_dict_remove_primitive);
+    Hashtbl.replace env "dict-contains" (Primitive soluna_dict_contains_primitive);
     env
 
 let () =
