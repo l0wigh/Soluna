@@ -36,44 +36,11 @@ This looks strange ? This is just reverse polish notation. It can look strange a
 
 ## What are the builtin tools ?
 
-Builtin tools helps you do more stuff in an easier maner. Here is a list of what you can use with a little example.
+Builtin tools helps you do more stuff in an easier maner. You can look at the [Language Reference](https://github.com/l0wigh/Soluna/blob/master/LANGUAGE.md)
 
-- defvar: `(defvar x 10)` will let you create a variable that will contain an expression. They are scope "based". Which means variable shadowing. There is an example showing this.
-- lambda: `(lambda (arg1 arg2) (...))` this is the way to define anonymous functions.
-- function: `(function name (arg1 arg2) (...))` this is the way to define named functions. It's a syntactic sugar, for lambda functions.
-- if: `(if (= x 0) (writeln "True.") (writeln "False."))` very basic if/else setup.
-- do: `(do (writeln "multiple") (writeln "block of") (writeln "code"))` let you evaluate multiple expressions sequentially and return the last expression value.
-- case: `(case ((condition) expression) ((condition) expression) ... (default expression))`: works like switch cases in C.
-- list: `(list 1 2 3 ...)` let you create a list of elements.
-- cons: `(cons element lst)` let you create a new list by adding an element at the beginning of a list.
-- fst: `(fst lst)` get the first element of a list.
-- rst: `(rst lst)` get the list without the first element.
-- reverse: `(reverse lst)` reverse the list.
-- map: `(map func lst)` will return a new list based on the result of the function applied to every element of the list.
-- filter: `(map func lst)` will return a new list containing only the elements that returns true inside the function passed in argument.
-- dict: `(dict size)` create a dictionnary (hashmap) with the specified size.
-- dict-set: `(dict-set dictionnary key value)` will bind a key and a value in a dictionnary.
-- dict-get: `(dict-get dictionnary key)` returns the value associated with a key.
-- dict-ref: `(dict-get dictionnary key default)` returns the value associated with a key or the default value.
-- write: `(write "Hello World !")` will write the expression (not only string) passed in argument.
-- writeln: `(writeln "Hello World !")` same as before, but will add a newline char at the end.
-- explode: `(explode "string")` create a list of chars from a string
-
-And that's it. Missing filter ? Implement it manually. Missing sqrt ? Implement it manually.
+Missing something ? You should be able to code what is missing by yourself. Casting spells sometimes requires you to be smart.
 
 In fact, what is present here is enough to create any kind of functions. You might need to find tricks to do what you want, but it helps you understand everything you do.
-
-## Nothing more ?
-
-Obviously, there is some other predefined tools that are not that specific to Soluna. Here is a list.
-
-- Mathematical operators: `(+ 2 3) (- 33 10) (* 5 10) (/ 10 2)` do I really need to explain what it does ?
-- Modulo: `(mod 10 5)` easy to understand too...
-- null: `(null lst)` will tell you if a list is empty (returns a boolean)
-- num: `(num 1)` will tell you if an element is a number
-- Comparaison operators: `(< 2 3) (> 2 3) (= 2 3) (>= 2 3) (<= 2 3)` will return a boolean too
-
-You can split your code and use the `(include filename)` to load another file at runtime.
 
 Also you can comment your code using this format `; This is a line comment`.
 

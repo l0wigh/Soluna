@@ -1,0 +1,2 @@
+(defvar name (input "What is your name ?\n> "))
+(writeln (implode (list "Hello " name ", I hope you have a great day !")))

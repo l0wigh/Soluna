@@ -1,4 +1,4 @@
-let soluna_version = "0.2.5"
+let soluna_version = "0.3.0"
 type soluna_position = { filename: string; line: int; }
 type soluna_expr =
     | Number of int * soluna_position
@@ -638,6 +638,25 @@ let soluna_write_file_primitive env args =
     end
     | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'write-file' requires three arguments: filename, string, mode (:overwrite or :append)" error_msg (font_blue ^ pos.filename) pos.line font_rst)
 
+let soluna_input_primitive env args =
+    let pos = soluna_token_pos args in
+    match args with
+    | [prompt_sexp] -> begin
+        let prompt = soluna_eval prompt_sexp env in
+        match prompt with
+        | String (s, _) -> begin
+            print_string s;
+            flush stdout;
+            try
+                let user_input = read_line () in
+                String (user_input, pos)
+            with
+            | End_of_file -> String ("", pos)
+        end
+        | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'input' requires a prompt of type String" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+    end
+    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'input' requires a prompt of type String" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+
 let soluna_init_env () : env =
     let env = Hashtbl.create 20 in 
     Hashtbl.replace env "+" (Primitive (soluna_apply_arithmetic (+))); 
@@ -664,6 +683,7 @@ let soluna_init_env () : env =
     Hashtbl.replace env "explode" (Primitive (soluna_explode_primitive env));
     Hashtbl.replace env "implode" (Primitive (soluna_implode_primitive env));
     Hashtbl.replace env "length" (Primitive (soluna_length_primitive env));
+    Hashtbl.replace env "input" (Primitive (soluna_input_primitive env));
     Hashtbl.replace env "read-file" (Primitive (soluna_read_file_primitive env));
     Hashtbl.replace env "write-file" (Primitive (soluna_write_file_primitive env));
     Hashtbl.replace env "dict" (Primitive soluna_dict_primitive);
