@@ -23,7 +23,7 @@ The documentation can be found [here](https://github.com/l0wigh/Soluna/blob/mast
 - if: simple if else block
 - map: apply a function to a list to get a new list
 - filter: apply a function that returns a boolean and create a function only with elements that output as true.
-- ...: other stuff can be found in the documentation
+- ...: other stuff can be found in the [Language Reference](https://github.com/l0wigh/Soluna/blob/master/LANGUAGE.md)
 
 You need to build the missing tools by yourself
 
@@ -35,7 +35,6 @@ I don't really know exactly what I'll want and what I'll do. Here is a list that
 - REPL
 - More high order functions (fold, ...)
 - Sexp runtime reading functions
-- File reader (This would be specifically to help solving AoC problems)
 - Step by step debugger
 
 Again, most of this will never be made since it doesn't feel necessary to me.
