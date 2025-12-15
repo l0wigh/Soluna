@@ -1,0 +1,9 @@
+(defvar name "Soluna")
+
+(each c (explode name)
+	 (do (write c) (write " ")))
+
+(writeln "")
+
+(each c (rst (explode name))
+	 (writeln c))

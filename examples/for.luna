@@ -1,0 +1,6 @@
+(defvar start 1)
+(defvar end 11)
+
+(for (< start end) (do (writeln start) (defvar start (+ start 1))))
+(write "No shadowing here -> start value after loop: ")
+(writeln start)
