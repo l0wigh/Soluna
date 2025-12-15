@@ -1,3 +1,4 @@
+let soluna_version = "0.2.0"
 type soluna_position = { filename: string; line: int; }
 type soluna_expr =
     | Number of int * soluna_position
@@ -54,7 +55,7 @@ let rec soluna_read_tokens token_list =
     end
 and soluna_read_list token_acc token_list =
     match token_list with
-    | [] -> failwith "Soluna [%s] -> Expression was not closed !"
+    | [] -> failwith (Printf.sprintf "Soluna [%s] -> Expression was not closed !" error_msg)
     | h :: t -> begin
         match h.token with
         | ")" -> (List.rev token_acc, t)
@@ -63,7 +64,6 @@ and soluna_read_list token_acc token_list =
             soluna_read_list (sexp :: token_acc) rem_tokens
         end
     end
-
 
 let rec soluna_read_program tok_sexp tok_acc =
     match tok_sexp with
@@ -87,7 +87,7 @@ let rec soluna_get_string sexp str =
     match sexp with
     | '"' :: t -> (str, t)
     | h :: t -> soluna_get_string t (str ^ String.make 1 h)
-    | _ -> failwith "Soluna [%s] -> String needs to be have \" around them"
+    | _ -> failwith (Printf.sprintf "Soluna [%s] -> String needs to be have \" around them" error_msg)
 
 let soluna_get_pos sexp =
     match sexp with
@@ -203,7 +203,7 @@ let rec soluna_eval sexp (env: env) =
     | List ([], _) -> sexp
     | String (s, pos) -> String (s, pos)
     | Symbol (s, pos) -> (try Hashtbl.find env s with | Not_found -> failwith (Printf.sprintf "Soluna [%s] %s:%d%s -> Unbound symbol '%s'" error_msg (font_blue ^ pos.filename) pos.line font_rst s))
-    | _ -> failwith "Soluna [%s] -> soluna_eval is missing something"
+    | _ -> failwith (Printf.sprintf "Soluna [%s] -> soluna_eval is missing something" internal_msg)
 and soluna_include_file filename pos env =
     let current_dir = dirname (font_blue ^ pos.filename) in
     let path = concat current_dir filename in
@@ -352,14 +352,14 @@ let soluna_map_lambda_to_sexp lambda sexp =
     match lambda with
     | Lambda (params, body, lambda_env) -> begin
         if List.length params <> 1 then
-            failwith "Soluna [%s] -> Function passed to 'map' must accept exactly one argument"
+            failwith (Printf.sprintf "Soluna [%s] -> Function passed to 'map' must accept exactly one argument" error_msg)
         else
             let local_env = Hashtbl.copy lambda_env in
             Hashtbl.replace local_env (List.hd params) sexp;
             soluna_eval body local_env
     end
     | Primitive fn -> fn [sexp]
-    | _ -> failwith "Soluna [%s] -> First argument to 'map' must be a function"
+    | _ -> failwith (Printf.sprintf "Soluna [%s] -> First argument to 'map' must be a function" error_msg)
 
 let soluna_map_primitive args =
     let pos = match args with [] -> unknown_pos | h :: _ -> soluna_get_pos h in
@@ -490,6 +490,7 @@ let soluna_init_env () : env =
 let () =
     try
         let filename = match Sys.argv with
+        | [|_; "-v"|] -> Printf.printf "Soluna %s\n" (font_blue ^ soluna_version ^ font_rst); exit 0
         | [|_; filename|] -> filename
         | _ -> Printf.eprintf "Usage: %s <filename.luna>" Sys.argv.(0); exit 1 in
 
