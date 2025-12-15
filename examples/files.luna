@@ -1,0 +1,38 @@
+(defvar data (read-file "my_heroes_raw.txt"))
+(writeln "File before parsing (my_heroes_raw.txt):")
+(writeln data)
+(writeln "")
+
+; Parse file and create a list with it
+(function create_list (str acc lst)
+	(case
+		((null str) (if (= 0 (length acc)) lst (cons (implode (reverse (explode acc))) lst)))
+		((= (fst str) "\n") (create_list (rst str) "" (cons (implode (reverse (explode acc))) lst)))
+		((= (fst str) ":") (create_list (rst str) (implode (cons " " (explode acc))) lst))
+		(default (create_list (rst str) (implode (cons (fst str) (explode acc))) lst))
+	)
+)
+
+(defvar parsed_data (reverse (create_list (explode data) "" (list))))
+
+; Open file and erase the content
+(write-file "my_heroes.txt" "" :overwrite)
+; Append the list to the file
+(map
+	(lambda (x)
+		(do
+			(write-file "my_heroes.txt" "- " :append)
+			(write-file "my_heroes.txt" x :append)
+			(case
+			  ((= x "Linus Torvalds") (write-file "my_heroes.txt" " (Linux)" :append))
+			  ((= x "Bram Moolenaar") (write-file "my_heroes.txt" " (Vim)" :append))
+			  ((= x "Terry Davis") (write-file "my_heroes.txt" " (TempleOS)" :append))
+			  ((= x "John McCarthy") (write-file "my_heroes.txt" " (Lisp)" :append))
+			  ((= x "Jonathan Blow") (write-file "my_heroes.txt" " (Jai)" :append))
+			  (default ())
+			)
+			(write-file "my_heroes.txt" "\n" :append)))
+parsed_data)
+
+(writeln "File after parsing (my_heroes.txt):")
+(writeln (read-file "my_heroes.txt"))

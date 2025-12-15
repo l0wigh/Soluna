@@ -1,3 +1,5 @@
 - Add documentation for dict-(keys, values, contains, remove)
 - Modify documentation for null to say that it can takes a dictionnary
-- Add documentation for "each" and "for"
+- Add documentation for "each" and "while"
+- Add documentation for "read-file" and "write-file"
+- Add documentation for "length"

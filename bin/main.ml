@@ -86,6 +86,15 @@ let soluna_read_file filename =
 let rec soluna_get_string sexp str =
     match sexp with
     | '"' :: t -> (str, t)
+    | '\\' :: t -> begin
+        match t with
+        | 'n' :: tt -> soluna_get_string tt (str ^ "\n")
+        | 't' :: tt -> soluna_get_string tt (str ^ "\t")
+        | '\\' :: tt -> soluna_get_string tt (str ^ "\\")
+        | '"' :: tt -> soluna_get_string tt (str ^ "\"")
+        | h :: tt -> soluna_get_string tt (str ^ (String.make 1 '\\') ^ (String.make 1 h))
+        | [] -> failwith (Printf.sprintf "[%s] -> String ends unexpectedly after escape character" error_msg)
+    end
     | h :: t -> soluna_get_string t (str ^ String.make 1 h)
     | _ -> failwith (Printf.sprintf "[%s] -> String needs to be have \" around them" error_msg)
 
@@ -209,6 +218,8 @@ let rec soluna_eval sexp (env: env) =
     | List ((h :: t), pos) -> soluna_eval_list_form (List ((h :: t), pos)) env
     | List ([], _) -> sexp
     | String (s, pos) -> String (s, pos)
+    | Symbol (":overwrite", pos) -> String (":overwrite", pos)
+    | Symbol (":append", pos) -> String (":append", pos)
     | Symbol (s, pos) -> (try Hashtbl.find env s with | Not_found -> failwith (Printf.sprintf "[%s] %s:%d%s -> Unbound symbol '%s'" error_msg (font_blue ^ pos.filename) pos.line font_rst s))
     | _ -> failwith (Printf.sprintf "[%s] -> soluna_eval is missing something" internal_msg)
 and soluna_eval_while cond_sexp body_sexp env pos =
@@ -573,6 +584,60 @@ and sexp_list_to_string_list sexp_list pos =
         | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'implode' requires a string list as argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
     ) sexp_list
 
+let rec soluna_read_file_primitive env args =
+    let pos = soluna_token_pos args in
+    match args with
+    | [path_sexp] -> begin
+        let path = soluna_eval path_sexp env in
+        match path with
+        | String (p, _) -> begin
+            try
+                let content = read_file_content p in
+                String (content, pos)
+            with
+            | Sys_error msg -> failwith (Printf.sprintf "[%s] %s:%d%s -> Can't read file '%s': %s" error_msg (font_blue ^ pos.filename) pos.line font_rst p msg)
+            | End_of_file -> String ("", pos)
+        end
+        | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'read-file' requires a filepath" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+    end
+    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'read-file' requires a filepath" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+and read_file_content path =
+    let ic = open_in path in
+    let content = really_input_string ic (in_channel_length ic) in
+    close_in ic;
+    content
+
+let soluna_write_file_primitive env args =
+    let pos = soluna_token_pos args in
+    match args with
+    | [path_sexp; content_sexp; mode_sexp] -> begin
+        let path = soluna_eval path_sexp env in
+        let content = soluna_eval content_sexp env in
+        let mode = soluna_eval mode_sexp env in
+        match path, content, mode with
+        | String (path, _), String (content, _), String (mode, _) -> begin
+            let m = match mode with
+            | ":append" -> [Open_wronly; Open_creat; Open_append]
+            | ":overwrite" -> [Open_wronly; Open_creat; Open_trunc]
+            | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Writing mode '%s' invalid" error_msg (font_blue ^ pos.filename) pos.line font_rst mode)
+            in
+            let oc =
+                try
+                    open_out_gen m 0o644 path
+                with
+                | Sys_error msg -> failwith (Printf.sprintf "[%s] %s:%d%s -> Can't open file '%s': %s" error_msg (font_blue ^ pos.filename) pos.line font_rst path msg)
+            in
+            try
+                output_string oc content;
+                close_out oc;
+                Symbol ("nil", pos)
+            with
+            | e -> close_out_noerr oc; raise e
+        end
+        | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'write-file' requires three arguments: filename, string, mode (:overwrite or :append)" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+    end
+    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'write-file' requires three arguments: filename, string, mode (:overwrite or :append)" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+
 let soluna_init_env () : env =
     let env = Hashtbl.create 20 in 
     Hashtbl.replace env "+" (Primitive (soluna_apply_arithmetic (+))); 
@@ -599,6 +664,8 @@ let soluna_init_env () : env =
     Hashtbl.replace env "explode" (Primitive (soluna_explode_primitive env));
     Hashtbl.replace env "implode" (Primitive (soluna_implode_primitive env));
     Hashtbl.replace env "length" (Primitive (soluna_length_primitive env));
+    Hashtbl.replace env "read-file" (Primitive (soluna_read_file_primitive env));
+    Hashtbl.replace env "write-file" (Primitive (soluna_write_file_primitive env));
     Hashtbl.replace env "dict" (Primitive soluna_dict_primitive);
     Hashtbl.replace env "dict-set" (Primitive soluna_dict_set_primitive);
     Hashtbl.replace env "dict-get" (Primitive soluna_dict_get_primitive);
