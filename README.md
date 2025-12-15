@@ -63,6 +63,9 @@ You need to install ocaml and dune. Look at the [official website](https://ocaml
 You can then do :
 - build: `dune build`
 - run: `dune exec soluna`
+- install: `dune install`
+
+After a dune install, you'll be able to use `soluna <filename>`.
 
 Binary file will be present in the `_build` directory.
 
