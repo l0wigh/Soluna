@@ -1,3 +1,3 @@
 - Add documentation for dict-(keys, values, contains, remove)
 - Modify documentation for null to say that it can takes a dictionnary
-- Add documentation for "for"
+- Add documentation for "each" and "for"
