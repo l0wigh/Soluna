@@ -287,8 +287,13 @@ let soluna_write_expression mode args =
 let soluna_apply_comp op args =
     let pos = match args with [] -> unknown_pos | h :: _ -> soluna_get_pos h in
     match args with
-    | [Number (a, _); Number (b, _)] -> Boolean ((op a b), unknown_pos)
-    | _ -> failwith (Printf.sprintf "Soluna [ERROR] L%d: Comparison requires exactly two numbers" pos.line)
+    | [Number (a, _); Number (b, _)] -> Boolean ((op a b), pos)
+    | [String (a, _); String (b, _)] -> begin 
+        match (String.compare a b) with
+        | 0 -> Boolean (true, pos)
+        | _ -> Boolean (false, pos)
+    end
+    | _ -> failwith (Printf.sprintf "Soluna [ERROR] L%d: Comparison requires two arguments of the same type (string or int)" pos.line)
 
 let soluna_apply_modulo args =
     let pos = match args with [] -> unknown_pos | h :: _ -> soluna_get_pos h in
@@ -434,6 +439,17 @@ let soluna_hashmap_ref_primitive args =
     end
     | _ -> failwith (Printf.sprintf "Soluna [ERROR] L%d: 'hashmap-ref' requires a map, a key and a default value" pos.line)
 
+let soluna_explode_primitive args =
+    let pos = match args with [] -> unknown_pos | h :: _ -> soluna_get_pos h in
+    match args with
+    | [String (s, p)] -> begin
+        let res = String.to_seq s
+        |> List.of_seq
+        |> List.map (fun c -> String (String.make 1 c, p)) in
+        List (res, pos)
+    end
+    | _ -> failwith (Printf.sprintf "Soluna [ERROR] L%d: 'explode' requires a string as argument" pos.line)
+
 let soluna_init_env () : env =
     let env = Hashtbl.create 20 in 
     Hashtbl.replace env "+" (Primitive (soluna_apply_arithmetic (+))); 
@@ -457,6 +473,7 @@ let soluna_init_env () : env =
     Hashtbl.replace env "num" (Primitive soluna_num_primitive);
     Hashtbl.replace env "filter" (Primitive soluna_filter_primitive);
     Hashtbl.replace env "reverse" (Primitive soluna_reverse_primitive);
+    Hashtbl.replace env "explode" (Primitive soluna_explode_primitive);
     Hashtbl.replace env "hashmap" (Primitive soluna_hashmap_primitive);
     Hashtbl.replace env "hashmap-set" (Primitive soluna_hashmap_set_primitive);
     Hashtbl.replace env "hashmap-get" (Primitive soluna_hashmap_get_primitive);

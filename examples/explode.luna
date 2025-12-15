@@ -1,0 +1,9 @@
+(defvar origin "Hello World")
+(defvar origin_lst (explode origin)) ; explode will create a list of characters from a string
+
+(writeln origin)
+(writeln origin_lst)
+
+(writeln (filter (lambda (c) (= c "l")) origin_lst))
+(writeln (filter (lambda (c) (= c "o")) origin_lst))
+(writeln (filter (lambda (c) (case ((= c "o") false) ((= c "l") false) (default true))) origin_lst))
