@@ -1,4 +1,4 @@
-# Soluna Language Documentation (v0.3.0)
+# Soluna Language Documentation (v0.3.1)
 
 ---
 
@@ -20,6 +20,7 @@ Special forms control how their arguments are evaluated and enable control flow 
 | `true` | Boolean constant | `true` |
 | `false` | Boolean constant | `false` |
 | `default` | Final fallback clause for `case` | `default` |
+| `eval` | Evaluate an S-expression | `(eval "(+ 2 3)")` |
 | `:overwrite` | File write mode | `:overwrite` |
 | `:append` | File write mode | `:append` |
 
@@ -81,8 +82,8 @@ Primitives always evaluate their arguments before execution.
 
 | Primitive | Description | Syntax | Types |
 |---------|------------|--------|------|
-| `write` | Prints without newline | `(write expression)` | Any |
-| `writeln` | Prints with newline | `(writeln expression)` | Any |
+| `write` | Prints without newline (takes an optional color `:green/:red/:yellow/:blue`) | `(write expression)` | Any |
+| `writeln` | Prints with newline (takes an optional color `:green/:red/:yellow/:blue`) | `(writeln expression)` | Any |
 | `input` | Prompts user input | `(input "prompt")` | String |
 | `read-file` | Reads entire file | `(read-file "filepath")` | String |
 | `write-file` | Writes to a file | `(write-file "path" "content" mode)` | String |

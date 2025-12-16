@@ -1,0 +1,23 @@
+; This is the REPL that is launched by Soluna when started without arguments
+; As you can see, it's pretty basic. Lisp is great for this
+
+(function repl () (do
+	(defvar kill-switch true) ; Kill switch to stop the loop
+
+	; Option that show the result of the expression in green
+	; For example, when true, writeln will print the result two times.
+	;   One for the writeln, and one for the return value of writeln.
+	(defvar show-return true)
+
+	(while kill-switch
+		(do
+			(defvar user-input (input "oracle λ "))
+			(case
+				((= user-input "exit") (defvar kill-switch false))
+				((= user-input "hide") (do (defvar show-return false) (writeln "Sexp values are now hidden")))
+				((= user-input "show") (do (defvar show-return true) (writeln "Sexp values are now written")))
+				(default (try (do (defvar sexp (eval user-input))
+					(if show-return (writeln sexp :green) ())) (e (writeln e)))))))
+))
+
+(repl)

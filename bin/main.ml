@@ -1,4 +1,4 @@
-let soluna_version = "0.3.0"
+let soluna_version = "0.3.1"
 type soluna_position = { filename: string; line: int; }
 type soluna_expr =
     | Number of int * soluna_position
@@ -16,8 +16,15 @@ let font_rst = "\x1b[0m"
 let font_blue = "\x1b[34m\x1b[1m"
 let error_msg = "\x1b[31m\x1b[1mSoluna ERROR\x1b[0m"
 let internal_msg = "\x1b[32m\x1b[1mSoluna INTERNAL\x1b[0m"
+let user_reset = "\x1b[0m"
+let user_red = "\x1b[31m"
+let user_green = "\x1b[32m"
+let user_yellow = "\x1b[33m"
+let user_blue = "\x1b[34m"
 
 open Filename
+
+let soluna_repl = "(function repl () (do (defvar kill-switch true) (defvar show-return true) (while kill-switch (do (defvar user-input (input \"oracle λ \")) (case ((= user-input \"exit\") (defvar kill-switch false)) ((= user-input \"hide\") (do (defvar show-return false) (writeln \"Sexp values are now hidden\"))) ((= user-input \"show\") (do (defvar show-return true) (writeln \"Sexp values are now written\"))) (default (try (do (defvar sexp (eval user-input)) (if show-return (writeln sexp :green) ())) (e (writeln e))))))))) (repl)"
 
 let soluna_parse_atom ptoken =
     let token = ptoken.token in
@@ -36,6 +43,13 @@ let soluna_parse_atom ptoken =
             | Failure _ -> Symbol (token, pos)
     end
 
+let soluna_color_of_symbol arg =
+    match arg with
+    | ":red" -> user_red
+    | ":green" -> user_green
+    | ":yellow" -> user_yellow
+    | ":blue" -> user_blue
+    | _ -> user_reset
 
 let rec soluna_read_tokens token_list =
     match token_list with
@@ -186,6 +200,17 @@ let rec soluna_eval sexp (env: env) =
         end;
         bind
     end
+    | List ([Symbol ("try", _); main_sexp ; List ([Symbol (catch_var, _); handler_sexp], _)], pos) -> begin
+        try
+            soluna_eval main_sexp env
+        with
+        | Failure msg -> begin
+            let error_sexp = String (msg, pos) in
+            let handler_env = Hashtbl.copy env in
+            Hashtbl.replace handler_env catch_var error_sexp;
+            soluna_eval handler_sexp handler_env
+        end
+    end
     | List ([Symbol ("if", _); cond_exp; then_exp; else_exp], pos) -> begin
         let eval_cond = soluna_eval cond_exp env in
         (
@@ -218,8 +243,7 @@ let rec soluna_eval sexp (env: env) =
     | List ((h :: t), pos) -> soluna_eval_list_form (List ((h :: t), pos)) env
     | List ([], _) -> sexp
     | String (s, pos) -> String (s, pos)
-    | Symbol (":overwrite", pos) -> String (":overwrite", pos)
-    | Symbol (":append", pos) -> String (":append", pos)
+    | Symbol (s, pos) when String.length s > 1 && s.[0] = ':' -> String (s, pos)
     | Symbol (s, pos) -> (try Hashtbl.find env s with | Not_found -> failwith (Printf.sprintf "[%s] %s:%d%s -> Unbound symbol '%s'" error_msg (font_blue ^ pos.filename) pos.line font_rst s))
     | _ -> failwith (Printf.sprintf "[%s] -> soluna_eval is missing something" internal_msg)
 and soluna_eval_while cond_sexp body_sexp env pos =
@@ -326,15 +350,25 @@ let soluna_write_string s =
     in
     loop 0
 
-let soluna_write_expression mode args =
+let soluna_write_primitive env mode args =
     let pos = soluna_token_pos args in
     match args with
+    | [sexp; color_sexp] -> begin
+        let color = match soluna_eval color_sexp env with
+            | String (c, _) -> soluna_color_of_symbol c
+            | _ -> user_reset
+        in
+        let output = match sexp with
+            | String (s, _) -> soluna_write_string s
+            | _ -> soluna_string_of_sexp sexp in
+        if mode then Printf.printf "%s%s%s\n" color output user_reset else Printf.printf "%s%s%s" color output user_reset;
+        sexp
+    end
     | [sexp] -> begin
         let output = match sexp with
-        | String (s, _) -> soluna_write_string s
-        | _ -> soluna_string_of_sexp sexp in
+            | String (s, _) -> soluna_write_string s
+            | _ -> soluna_string_of_sexp sexp in
         if mode then Printf.printf "%s\n" output else Printf.printf "%s" output;
-        flush stdout;
         sexp
     end
     | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'write' requires exactly one argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
@@ -657,6 +691,31 @@ let soluna_input_primitive env args =
     end
     | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'input' requires a prompt of type String" error_msg (font_blue ^ pos.filename) pos.line font_rst)
 
+let soluna_eval_primitive env args =
+    let pos = soluna_token_pos args in
+    match args with
+    | [eval_sexp] -> begin
+        let sexp_to_eval = soluna_eval eval_sexp env in
+        match sexp_to_eval with
+        | String (s, _) -> begin
+            let parsed_sexp = String.to_seq s |> List.of_seq in
+            let parsed_sexp = soluna_tokenizer "" [] parsed_sexp 1 "runtime" in
+            let program = soluna_read_program parsed_sexp [] in
+            let rec eval_program program =
+                match program with
+                | [] -> Symbol ("nil", pos)
+                | [last_sexp] -> soluna_eval last_sexp env
+                | h :: t -> begin
+                    let _ = soluna_eval h env in
+                    eval_program t
+                end
+            in
+            eval_program program
+        end
+        | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'eval' requires a string as argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+    end
+    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'eval' requires a string as argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+
 let soluna_init_env () : env =
     let env = Hashtbl.create 20 in 
     Hashtbl.replace env "+" (Primitive (soluna_apply_arithmetic (+))); 
@@ -669,8 +728,8 @@ let soluna_init_env () : env =
     Hashtbl.replace env ">=" (Primitive (soluna_apply_comp (>=)));
     Hashtbl.replace env "<=" (Primitive (soluna_apply_comp (<=)));
     Hashtbl.replace env "mod" (Primitive soluna_apply_modulo); 
-    Hashtbl.replace env "write" (Primitive (soluna_write_expression false));
-    Hashtbl.replace env "writeln" (Primitive (soluna_write_expression true));
+    Hashtbl.replace env "write" (Primitive (soluna_write_primitive env false));
+    Hashtbl.replace env "writeln" (Primitive (soluna_write_primitive env true));
     Hashtbl.replace env "list" (Primitive soluna_list_primitive);
     Hashtbl.replace env "fst" (Primitive soluna_fst_primitive);
     Hashtbl.replace env "rst" (Primitive soluna_rst_primitive);
@@ -684,6 +743,7 @@ let soluna_init_env () : env =
     Hashtbl.replace env "implode" (Primitive (soluna_implode_primitive env));
     Hashtbl.replace env "length" (Primitive (soluna_length_primitive env));
     Hashtbl.replace env "input" (Primitive (soluna_input_primitive env));
+    Hashtbl.replace env "eval" (Primitive (soluna_eval_primitive env));
     Hashtbl.replace env "read-file" (Primitive (soluna_read_file_primitive env));
     Hashtbl.replace env "write-file" (Primitive (soluna_write_file_primitive env));
     Hashtbl.replace env "dict" (Primitive soluna_dict_primitive);
@@ -699,13 +759,19 @@ let soluna_init_env () : env =
 let () =
     try
         let filename = match Sys.argv with
+        | [|_; "-h"|] -> Printf.eprintf "Usage: %s <filename.luna>" Sys.argv.(0); exit 1
         | [|_; "-v"|] -> Printf.printf "Soluna %s\n" (font_blue ^ soluna_version ^ font_rst); exit 0
         | [|_; filename|] -> filename
-        | _ -> Printf.eprintf "Usage: %s <filename.luna>" Sys.argv.(0); exit 1 in
+        | _ -> "" in
 
-        let parsed_sexp = soluna_read_file filename
-        |> String.to_seq
-        |> List.of_seq in
+        let parsed_sexp = if String.length filename = 0 then
+            soluna_repl
+            |> String.to_seq
+            |> List.of_seq
+        else
+            soluna_read_file filename
+            |> String.to_seq
+            |> List.of_seq in
         let parsed_sexp = soluna_tokenizer "" [] parsed_sexp 1 filename in
 
         let program = soluna_read_program parsed_sexp [] in
@@ -713,5 +779,5 @@ let () =
 
         List.iter (fun sexp -> let _ = soluna_eval sexp global_env in ()) program;
     with
-    | Failure msg -> Printf.eprintf "\n%s\n" msg; exit 1
-    | e -> Printf.eprintf "\n\n[%s] -> Unexpected exception: %s\n" internal_msg (Printexc.to_string e); exit 1
+    | Failure msg -> flush stdout; Printf.eprintf "\n%s\n" msg; exit 1
+    | e -> flush stdout; Printf.eprintf "\n\n[%s] -> Unexpected exception: %s\n" internal_msg (Printexc.to_string e); exit 1
