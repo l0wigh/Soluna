@@ -1,8 +1,7 @@
 ; Simpliest form of REPL for Soluna
 ; Look at Oracle.luna for a more advanced form of REPL
 (function repl () (do
-	(defvar kill-switch true)
-	(while kill-switch (do
+	(while true (do
 		(defvar user-input (input "> "))
 		(writeln (eval user-input))
 	))

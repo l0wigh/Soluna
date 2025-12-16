@@ -1,0 +1,50 @@
+(defvar code "(function closed_expression (lst) (do
+(defvar opening (length (filter (lambda (x) (if (= x '(') true false)) lst)))
+(defvar closing (length (filter (lambda (x) (if (= x ')') true false)) lst)))
+(if (= opening closing) true false)
+))
+(function oracle () (do
+(defvar prompt 'oracle λ ')
+(defvar kill-switch true)
+(defvar show-return true)
+(defvar unclosed (list))
+(while kill-switch
+(do
+(defvar user-input (input prompt))
+(case
+((= user-input 'exit') (defvar kill-switch false))
+((= user-input 'hide') (do (defvar show-return false) (writeln 'Sexp values are now hidden')))
+((= user-input 'show') (do (defvar show-return true) (writeln 'Sexp values are now written')))
+(default (try (do
+(defvar unclosed (cons ' ' unclosed))
+(defvar sexp (implode (reverse (cons user-input unclosed))))
+(case ((closed_expression (explode sexp)) (do
+(defvar sexp (eval sexp))
+(defvar prompt 'oracle λ ')
+(if show-return (do
+(write '- : ')
+(defvar sexp_type (type sexp))
+(case
+((= sexp_type 'Lambda') (defvar sexp_type ''))
+(default (defvar sexp_type (implode (list sexp_type ' '))))
+)
+(write sexp_type :green)
+(writeln sexp :green)
+(defvar unclosed (list)))
+()
+))
+)
+(default (do
+(defvar prompt '... ')
+(defvar unclosed (cons user-input unclosed))
+))
+))
+(e (writeln e))
+))
+)
+)
+)
+))
+(oracle)")
+
+(writeln (implode (split "\n" code)))

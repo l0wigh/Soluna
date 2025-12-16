@@ -1,4 +1,4 @@
-let soluna_version = "0.4.2"
+let soluna_version = "0.4.3"
 type soluna_position = { filename: string; line: int; }
 type soluna_expr =
     | Number of int * soluna_position
@@ -24,7 +24,7 @@ let user_blue = "\x1b[34m"
 
 open Filename
 
-let soluna_repl = "(function oracle () (do(defvar kill-switch true)(defvar show-return true)(while kill-switch(do(defvar user-input (input \"oracle λ \"))(case((= user-input \"exit\") (defvar kill-switch false))((= user-input \"hide\") (do (defvar show-return false) (writeln \"Sexp values are now hidden\")))((= user-input \"show\") (do (defvar show-return true) (writeln \"Sexp values are now written\")))(default (try (do (defvar sexp (eval user-input))(if show-return (do(write user-input :blue)(write \" - \")(write (implode (list (type sexp) \" \")) :green)(writeln sexp :green))()))(e (writeln e)))))))))(oracle)"
+let soluna_repl = "(function closed_expression (lst) (do(defvar opening (length (filter (lambda (x) (if (= x \"(\") true false)) lst)))(defvar closing (length (filter (lambda (x) (if (= x \")\") true false)) lst)))(if (= opening closing) true false)))(function oracle () (do(defvar prompt \"oracle λ \")(defvar kill-switch true)(defvar show-return true)(defvar unclosed (list))(while kill-switch(do(defvar user-input (input prompt))(case((= user-input \"exit\") (defvar kill-switch false))((= user-input \"hide\") (do (defvar show-return false) (writeln \"Sexp values are now hidden\")))((= user-input \"show\") (do (defvar show-return true) (writeln \"Sexp values are now written\")))(default (try (do(defvar unclosed (cons \" \" unclosed))(defvar sexp (implode (reverse (cons user-input unclosed))))(case ((closed_expression (explode sexp)) (do(defvar sexp (eval sexp))(defvar prompt \"oracle λ \")(if show-return (do(write \"- : \")(defvar sexp_type (type sexp))(case((= sexp_type \"Lambda\") (defvar sexp_type \"\"))(default (defvar sexp_type (implode (list sexp_type \" \")))))(write sexp_type :green)(writeln sexp :green)(defvar unclosed (list)))())))(default (do(defvar prompt \"... \")(defvar unclosed (cons user-input unclosed))))))(e (writeln e)))))))))(oracle)"
 
 let soluna_parse_atom ptoken =
     let token = ptoken.token in
@@ -740,19 +740,10 @@ let soluna_eval_primitive env args =
     end
     | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'eval' requires a string as argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
 
-let soluna_type_primitive env args =
+let soluna_type_primitive args =
     let pos = soluna_token_pos args in
     match args with
-    | [Number _] -> String ("Number", pos)
-    | [String _] -> String ("String", pos)
-    | [Lambda _] -> String ("Lambda", pos)
-    | [List _] -> String ("List", pos)
-    | [Boolean _] -> String ("Boolean", pos)
-    | [Primitive _] -> String ("Primitive", pos)
-    | [Symbol _] -> String ("Symbol", pos)
-    | [Dict _] -> String ("Dict", pos)
-    | h :: _ -> begin
-        let sexp = soluna_eval h env in
+    | [sexp] -> begin
         match sexp with
         | Number (_, _) -> String ("Number", pos)
         | String (_, _) -> String ("String", pos)
@@ -837,7 +828,7 @@ let soluna_init_env () : env =
     Hashtbl.replace env "length" (Primitive (soluna_length_primitive env));
     Hashtbl.replace env "input" (Primitive (soluna_input_primitive env));
     Hashtbl.replace env "eval" (Primitive (soluna_eval_primitive env));
-    Hashtbl.replace env "type" (Primitive (soluna_type_primitive env));
+    Hashtbl.replace env "type" (Primitive soluna_type_primitive);
     Hashtbl.replace env "int" (Primitive (soluna_int_primitive env));
     Hashtbl.replace env "str" (Primitive (soluna_str_primitive env));
     Hashtbl.replace env "read-file" (Primitive (soluna_read_file_primitive env));

@@ -1,4 +1,4 @@
-# Soluna Language Documentation (v0.4.0)
+# Soluna Language Documentation (v0.4.3)
 
 ---
 

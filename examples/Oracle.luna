@@ -1,29 +1,58 @@
 ; Oracle is the REPL that is started by Soluna when no source file are given to it.
 
+(function closed_expression (lst) (do
+	(defvar opening (length (filter (lambda (x) (if (= x "(") true false)) lst)))
+	(defvar closing (length (filter (lambda (x) (if (= x ")") true false)) lst)))
+	(if (= opening closing) true false)
+))
+
 (function oracle () (do
+	(defvar prompt "oracle λ ")
 	(defvar kill-switch true) ; Kill switch to stop the loop
 
 	; Option that show the result of the expression in green
 	; For example, when true, writeln will print the result two times.
 	;   One for the writeln, and one for the return value of writeln.
 	(defvar show-return true)
+	; Keep current unclosed expression
+	(defvar unclosed (list))
 
 	(while kill-switch
 		(do
-			(defvar user-input (input "oracle λ "))
+			(defvar user-input (input prompt))
 			(case
 				((= user-input "exit") (defvar kill-switch false))
 				((= user-input "hide") (do (defvar show-return false) (writeln "Sexp values are now hidden")))
 				((= user-input "show") (do (defvar show-return true) (writeln "Sexp values are now written")))
-				(default (try (do (defvar sexp (eval user-input))
-					(if show-return (do
-						(write user-input :blue)
-						(write " - ")
-						(write (implode (list (type sexp) " ")) :green)
-						(writeln sexp :green))
-						()
+				(default (try (do
+						(defvar unclosed (cons " " unclosed))
+						(defvar sexp (implode (reverse (cons user-input unclosed))))
+						(case ((closed_expression (explode sexp)) (do
+							(defvar sexp (eval sexp))
+							(defvar prompt "oracle λ ")
+							(if show-return (do
+								(write "- : ")
+								(defvar sexp_type (type sexp))
+								(case
+									((= sexp_type "Lambda") (defvar sexp_type ""))
+									(default (defvar sexp_type (implode (list sexp_type " "))))
+								)
+								(write sexp_type :green)
+								(writeln sexp :green)
+								(defvar unclosed (list)))
+								()
+							))
+						)
+						(default (do
+							(defvar prompt "... ")
+							(defvar unclosed (cons user-input unclosed))
+						))
 					))
-					(e (writeln e)))))))
+					(e (writeln e))
+				))
+			)
+		)
+	)
 ))
 
 (oracle)
