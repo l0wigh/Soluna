@@ -63,6 +63,7 @@ Primitives always evaluate their arguments before execution.
 | `length` | Returns sequence length | `(length sequence)` | List, String, Dict |
 | `explode` | Converts a string to character list | `(explode "string")` | String |
 | `implode` | Concatenates string list into one string | `(implode list-of-strings)` | List |
+| `split` | Split a string into a string list based on a delimiter | `(split delimiter string)` | List |
 
 ---
 

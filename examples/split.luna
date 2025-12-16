@@ -1,0 +1,25 @@
+(defvar custom_delimiter "o")
+(defvar hello "Hello from Soluna !")
+(write "hello variable: " :blue) (writeln hello)
+(write "hello splitted on spaces: " :blue) (writeln (split "" hello))
+(write "hello splitted on letter o: " :blue) (writeln (split custom_delimiter hello))
+
+(writeln "\nUsing the file 'my_heroes_raw.txt'" :blue)
+(defvar heroes (read-file "my_heroes_raw.txt"))
+(writeln heroes)
+
+(writeln "\nNow let's do a split on newline chars" :blue)
+(defvar nl_heroes (split "\n" heroes))
+(writeln nl_heroes)
+
+(writeln "\nI'll create a dict to keep these Heroes..." :blue)
+(defvar dict_heroes (dict (length nl_heroes)))
+
+
+(writeln "Now a map on every list elements, where I split and save them..." :blue)
+(map (lambda (hero) (do
+	(defvar splitted_names (split ":" hero))
+	(dict-set dict_heroes (fst (rst splitted_names)) (fst splitted_names))
+)) nl_heroes)
+
+(write "Here is the content of the dict: " :blue) (writeln dict_heroes)

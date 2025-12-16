@@ -1,4 +1,4 @@
-let soluna_version = "0.4.1"
+let soluna_version = "0.4.2"
 type soluna_position = { filename: string; line: int; }
 type soluna_expr =
     | Number of int * soluna_position
@@ -238,6 +238,7 @@ let rec soluna_eval sexp (env: env) =
         ) params_list in
         Lambda (params_names, body_sexp, env)
     end
+    | List ([Symbol ("split", _); delimiter_sexp; str_sexp], pos) -> soluna_eval_split delimiter_sexp str_sexp env pos
     | List ([Symbol ("each", _); Symbol (var_name, _); lst_sexp; body_sexp], pos) -> soluna_eval_each var_name lst_sexp body_sexp env pos
     | List ([Symbol ("while", _); cond_sexp; body_sexp], pos) -> soluna_eval_while cond_sexp body_sexp env pos
     | List ((h :: t), pos) -> soluna_eval_list_form (List ((h :: t), pos)) env
@@ -246,6 +247,29 @@ let rec soluna_eval sexp (env: env) =
     | Symbol (s, pos) when String.length s > 1 && s.[0] = ':' -> String (s, pos)
     | Symbol (s, pos) -> (try Hashtbl.find env s with | Not_found -> failwith (Printf.sprintf "[%s] %s:%d%s -> Unbound symbol '%s'" error_msg (font_blue ^ pos.filename) pos.line font_rst s))
     | _ -> failwith (Printf.sprintf "[%s] -> soluna_eval is missing something" internal_msg)
+and soluna_eval_split delimiter_sexp str_sexp env pos =
+    let delimiter = soluna_eval delimiter_sexp env in
+    match delimiter with
+    | String (d, _) -> begin
+        let str_val = soluna_eval str_sexp env in
+        match str_val with
+        | String (s, _) -> begin
+            let d_c = String.to_seq d |> List.of_seq in
+            let d_c = match d_c with
+                | h :: _ -> h
+                | _ -> ' '
+            in
+            let str_lst = String.split_on_char d_c s in
+            let rec split_aux lst acc =
+                match lst with
+                | [] -> List (List.rev acc, pos)
+                | h :: t -> split_aux t (String (h, pos) :: acc)
+            in
+            split_aux str_lst []
+        end
+        | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'split' requires a String as last argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+    end
+    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'split' delimiter should evaluate as a String" error_msg (font_blue ^ pos.filename) pos.line font_rst)
 and soluna_eval_while cond_sexp body_sexp env pos =
     let rec loop () =
         let cond_value = soluna_eval cond_sexp env in
