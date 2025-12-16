@@ -800,6 +800,18 @@ let soluna_str_primitive env args =
     end
     | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'str' primitive requires a Number as argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
 
+(* The concept of Internal Pure functions come from the fact
+    that I suck at coding in OCaml and I want an easier way to extend the language *)
+let soluna_pure_reduce_primitive env =
+    let code = "(function reduce (f init lst) (do (defvar acc init) (each x lst (defvar acc (f acc x))) acc))"
+        |> String.to_seq
+        |> List.of_seq
+    in
+    let parsed_code = soluna_tokenizer "" [] code 1 "Pure-Internal" in
+    let program = soluna_read_program parsed_code [] in
+    List.iter (fun sexp -> let _ = soluna_eval sexp env in ()) program;
+    ()
+
 let soluna_init_env () : env =
     let env = Hashtbl.create 20 in 
     Hashtbl.replace env "+" (Primitive (soluna_apply_arithmetic (+))); 
@@ -863,6 +875,8 @@ let () =
 
         let program = soluna_read_program parsed_sexp [] in
         let global_env = soluna_init_env () in
+
+        soluna_pure_reduce_primitive global_env;
 
         List.iter (fun sexp -> let _ = soluna_eval sexp global_env in ()) program;
     with
