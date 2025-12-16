@@ -22,6 +22,8 @@ Special forms control how their arguments are evaluated and enable control flow 
 | `default` | Final fallback clause for `case` | `default` |
 | `eval` | Evaluate an S-expression | `(eval "(+ 2 3)")` |
 | `type` | Give the type of an expression | `(type "Hello World")` |
+| `int` | Convert a String to a Number | `(int "16")` |
+| `str` | Convert a Number to a String | `(str 16)` |
 | `:overwrite` | File write mode | `:overwrite` |
 | `:append` | File write mode | `:append` |
 

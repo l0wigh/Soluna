@@ -1,0 +1,29 @@
+(defvar isstr "1145")
+(defvar isint 1464)
+
+(write "isstr variable type: ")
+(write (type isstr))
+(writeln (implode (list " " isstr)))
+
+(write "isint variable type: ")
+(write (type isint))
+(writeln (implode (list " " (str isint))))
+
+(write "(int isstr) type: ")
+(write (type (int isstr)))
+(writeln (implode (list " " isstr)))
+
+(write "(str isint) type: ")
+(write (type (str isint)))
+(writeln (implode (list " " (str isint))))
+
+(defvar intlst (list 1 2 3 4))
+(write "intlist -> ") (writeln intlst)
+(defvar strlst (map (lambda (x) (str x)) intlst))
+(write "strlst made with a map -> ") (writeln strlst)
+(map (lambda (x) (do
+				   (write "type strlst: ")
+				   (write (type x))
+				   (writeln (implode (list " " x))))) strlst)
+
+(write "(int 'Hello World') -> ") (writeln (int "Hello World"))

@@ -1,4 +1,4 @@
-let soluna_version = "0.4.0"
+let soluna_version = "0.4.1"
 type soluna_position = { filename: string; line: int; }
 type soluna_expr =
     | Number of int * soluna_position
@@ -741,6 +741,50 @@ let soluna_type_primitive env args =
     end
     | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Type not found" error_msg (font_blue ^ pos.filename) pos.line font_rst)
 
+let soluna_int_primitive env args =
+    let pos = soluna_token_pos args in
+    match args with
+    | [String (h, p)] -> begin
+        try
+            Number (int_of_string h, p)
+        with
+        | Failure _ -> Number (0, p)
+    end
+    | h :: _ -> begin
+        let sexp = soluna_eval h env in
+        match sexp with
+        | String (h, p) -> begin
+            try
+                Number (int_of_string h, p)
+            with
+            | Failure _ -> Number (0, p)
+        end
+        | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'int' primitive requires a String as argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+    end
+    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'int' primitive requires a String as argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+
+let soluna_str_primitive env args =
+    let pos = soluna_token_pos args in
+    match args with
+    | [Number (h, p)] -> begin
+        try
+            String (string_of_int h, p)
+        with
+        | Failure _ -> String ("", p)
+    end
+    | h :: _ -> begin
+        let sexp = soluna_eval h env in
+        match sexp with
+        | Number (h, p) -> begin
+            try
+                String (string_of_int h, p)
+            with
+            | Failure _ -> String ("", p)
+        end
+        | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'str' primitive requires a Number as argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+    end
+    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'str' primitive requires a Number as argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+
 let soluna_init_env () : env =
     let env = Hashtbl.create 20 in 
     Hashtbl.replace env "+" (Primitive (soluna_apply_arithmetic (+))); 
@@ -770,6 +814,8 @@ let soluna_init_env () : env =
     Hashtbl.replace env "input" (Primitive (soluna_input_primitive env));
     Hashtbl.replace env "eval" (Primitive (soluna_eval_primitive env));
     Hashtbl.replace env "type" (Primitive (soluna_type_primitive env));
+    Hashtbl.replace env "int" (Primitive (soluna_int_primitive env));
+    Hashtbl.replace env "str" (Primitive (soluna_str_primitive env));
     Hashtbl.replace env "read-file" (Primitive (soluna_read_file_primitive env));
     Hashtbl.replace env "write-file" (Primitive (soluna_write_file_primitive env));
     Hashtbl.replace env "dict" (Primitive soluna_dict_primitive);
