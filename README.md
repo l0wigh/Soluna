@@ -32,7 +32,6 @@ You need to build the missing tools by yourself
 I don't really know exactly what I'll want and what I'll do. Here is a list that I will follow (or not):
 
 - Fix the slow 'cons' function
-- REPL
 - More high order functions (fold, ...)
 - Sexp runtime reading functions
 - Step by step debugger
