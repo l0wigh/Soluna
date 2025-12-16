@@ -1,0 +1,27 @@
+(function reduce (f init lst)
+  (do
+    (defvar acc init)
+    (each x lst
+      (defvar acc (f acc x)))
+    acc))
+
+(defvar nums (list 1 2 3 4 5))
+(defvar sum
+  (reduce (lambda (a b) (+ a b)) 0 nums))
+(writeln sum)
+
+(defvar nums (list 1 2 3 4))
+(defvar prod
+  (reduce (lambda (a b) (* a b)) 1 nums))
+(writeln prod)
+
+
+(defvar nums (list 1 2 3 4))
+(defvar prod
+  (reduce (lambda (a b) (* a b)) 1 nums))
+(writeln prod)
+(defvar lists (list (list 1 2) (list 3 4) (list 5)))
+(defvar flat
+  (reverse (reduce (lambda (a b) (cons b a)) (list) lists)))
+(writeln flat)
+
