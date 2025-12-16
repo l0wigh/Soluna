@@ -1,4 +1,4 @@
-# Soluna 0.3.1
+# Soluna 0.4.0
 
 <p align="center" width="100%">
     <img src="https://raw.githubusercontent.com/l0wigh/Soluna/refs/heads/master/logo_alchemy.gif">
@@ -26,6 +26,16 @@ The documentation can be found [here](https://github.com/l0wigh/Soluna/blob/mast
 - ...: other stuff can be found in the [Language Reference](https://github.com/l0wigh/Soluna/blob/master/LANGUAGE.md)
 
 You need to build the missing tools by yourself
+
+## Oracle REPL
+
+<p align="center" width="100%">
+    <img src="https://raw.githubusercontent.com/l0wigh/Soluna/refs/heads/master/oracle.png">
+</p>
+
+You can use the builtin REPL called Oracle when starting Soluna without argument.
+
+The code for Oracle is present [here](https://github.com/l0wigh/Soluna/blob/master/examples/Oracle.luna)
 
 ## What's to come ?
 

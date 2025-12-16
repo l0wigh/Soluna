@@ -24,6 +24,14 @@ You want to learn a bit of functionnal programming ? Soluna is made for you.
 
 You want to make money with coding ? Learn React.
 
+## Where to start ?
+
+You can use the builtin REPL called Oracle. Just start Soluna without argument to start it magically.
+
+You'll be able to run S-Expressions and see the result of it.
+
+The source code for Oracle is present (and up to date) in the examples folder.
+
 ## How to read Soluna syntax
 
 Pretty easy, (function arg1 arg2 ...). This is an S-Expression. To understand it a bit more, let's see how to add two numbers:

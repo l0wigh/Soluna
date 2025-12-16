@@ -1,7 +1,6 @@
-; This is the REPL that is launched by Soluna when started without arguments
-; As you can see, it's pretty basic. Lisp is great for this
+; Oracle is the REPL that is started by Soluna when no source file are given to it.
 
-(function repl () (do
+(function oracle () (do
 	(defvar kill-switch true) ; Kill switch to stop the loop
 
 	; Option that show the result of the expression in green
@@ -17,7 +16,14 @@
 				((= user-input "hide") (do (defvar show-return false) (writeln "Sexp values are now hidden")))
 				((= user-input "show") (do (defvar show-return true) (writeln "Sexp values are now written")))
 				(default (try (do (defvar sexp (eval user-input))
-					(if show-return (writeln sexp :green) ())) (e (writeln e)))))))
+					(if show-return (do
+						(write user-input :blue)
+						(write " - ")
+						(write (implode (list (type sexp) " ")) :green)
+						(writeln sexp :green))
+						()
+					))
+					(e (writeln e)))))))
 ))
 
-(repl)
+(oracle)

@@ -1,4 +1,4 @@
-let soluna_version = "0.3.1"
+let soluna_version = "0.4.0"
 type soluna_position = { filename: string; line: int; }
 type soluna_expr =
     | Number of int * soluna_position
@@ -24,7 +24,7 @@ let user_blue = "\x1b[34m"
 
 open Filename
 
-let soluna_repl = "(function repl () (do (defvar kill-switch true) (defvar show-return true) (while kill-switch (do (defvar user-input (input \"oracle λ \")) (case ((= user-input \"exit\") (defvar kill-switch false)) ((= user-input \"hide\") (do (defvar show-return false) (writeln \"Sexp values are now hidden\"))) ((= user-input \"show\") (do (defvar show-return true) (writeln \"Sexp values are now written\"))) (default (try (do (defvar sexp (eval user-input)) (if show-return (writeln sexp :green) ())) (e (writeln e))))))))) (repl)"
+let soluna_repl = "(function oracle () (do(defvar kill-switch true)(defvar show-return true)(while kill-switch(do(defvar user-input (input \"oracle λ \"))(case((= user-input \"exit\") (defvar kill-switch false))((= user-input \"hide\") (do (defvar show-return false) (writeln \"Sexp values are now hidden\")))((= user-input \"show\") (do (defvar show-return true) (writeln \"Sexp values are now written\")))(default (try (do (defvar sexp (eval user-input))(if show-return (do(write user-input :blue)(write \" - \")(write (implode (list (type sexp) \" \")) :green)(writeln sexp :green))()))(e (writeln e)))))))))(oracle)"
 
 let soluna_parse_atom ptoken =
     let token = ptoken.token in
@@ -716,6 +716,31 @@ let soluna_eval_primitive env args =
     end
     | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'eval' requires a string as argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
 
+let soluna_type_primitive env args =
+    let pos = soluna_token_pos args in
+    match args with
+    | [Number _] -> String ("Number", pos)
+    | [String _] -> String ("String", pos)
+    | [Lambda _] -> String ("Lambda", pos)
+    | [List _] -> String ("List", pos)
+    | [Boolean _] -> String ("Boolean", pos)
+    | [Primitive _] -> String ("Primitive", pos)
+    | [Symbol _] -> String ("Symbol", pos)
+    | [Dict _] -> String ("Dict", pos)
+    | h :: _ -> begin
+        let sexp = soluna_eval h env in
+        match sexp with
+        | Number (_, _) -> String ("Number", pos)
+        | String (_, _) -> String ("String", pos)
+        | Lambda (_, _, _) -> String ("Lambda", pos)
+        | List (_, _) -> String ("List", pos)
+        | Boolean (_, _) -> String ("Boolean", pos)
+        | Primitive _ -> String ("Primitive", pos)
+        | Symbol (_, _) -> String ("Symbol", pos)
+        | Dict (_, _) -> String ("Dict", pos)
+    end
+    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Type not found" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+
 let soluna_init_env () : env =
     let env = Hashtbl.create 20 in 
     Hashtbl.replace env "+" (Primitive (soluna_apply_arithmetic (+))); 
@@ -744,6 +769,7 @@ let soluna_init_env () : env =
     Hashtbl.replace env "length" (Primitive (soluna_length_primitive env));
     Hashtbl.replace env "input" (Primitive (soluna_input_primitive env));
     Hashtbl.replace env "eval" (Primitive (soluna_eval_primitive env));
+    Hashtbl.replace env "type" (Primitive (soluna_type_primitive env));
     Hashtbl.replace env "read-file" (Primitive (soluna_read_file_primitive env));
     Hashtbl.replace env "write-file" (Primitive (soluna_write_file_primitive env));
     Hashtbl.replace env "dict" (Primitive soluna_dict_primitive);

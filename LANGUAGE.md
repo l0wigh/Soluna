@@ -1,4 +1,4 @@
-# Soluna Language Documentation (v0.3.1)
+# Soluna Language Documentation (v0.4.0)
 
 ---
 
@@ -21,6 +21,7 @@ Special forms control how their arguments are evaluated and enable control flow 
 | `false` | Boolean constant | `false` |
 | `default` | Final fallback clause for `case` | `default` |
 | `eval` | Evaluate an S-expression | `(eval "(+ 2 3)")` |
+| `type` | Give the type of an expression | `(type "Hello World")` |
 | `:overwrite` | File write mode | `:overwrite` |
 | `:append` | File write mode | `:append` |
 
