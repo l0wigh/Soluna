@@ -37,7 +37,7 @@ You can use the builtin REPL called Oracle when starting Soluna without argument
 
 The code for Oracle is present [here](https://github.com/l0wigh/Soluna/blob/master/examples/Oracle.luna)
 
-Also protips, use rlwrap to expand the capbilities of Oracle.
+Also protips, use **rlwrap** to expand the capabilities of Oracle.
 
 ## What's to come ?
 
