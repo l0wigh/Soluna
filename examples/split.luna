@@ -1,8 +1,10 @@
 (defvar custom_delimiter "o")
 (defvar hello "Hello from Soluna !")
 (write "hello variable: " :blue) (writeln hello)
-(write "hello splitted on spaces: " :blue) (writeln (split "" hello))
-(write "hello splitted on letter o: " :blue) (writeln (split custom_delimiter hello))
+(write "splitted on spaces: " :blue) (writeln (split "" hello))
+(write "splitted on 'o': " :blue) (writeln (split custom_delimiter hello))
+(write "splitted on 'l' with keep-empty option: " :blue) (writeln (split "l" hello :keep-empty))
+(write "splitted on 'l' without keep-empty option: " :blue) (writeln (split "l" hello))
 
 (writeln "\nUsing the file 'my_heroes_raw.txt'" :blue)
 (defvar heroes (read-file "my_heroes_raw.txt"))

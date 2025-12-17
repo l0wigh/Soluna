@@ -1,4 +1,4 @@
-let soluna_version = "0.4.3"
+let soluna_version = "0.4.4"
 type soluna_position = { filename: string; line: int; }
 type soluna_expr =
     | Number of int * soluna_position
@@ -238,7 +238,8 @@ let rec soluna_eval sexp (env: env) =
         ) params_list in
         Lambda (params_names, body_sexp, env)
     end
-    | List ([Symbol ("split", _); delimiter_sexp; str_sexp], pos) -> soluna_eval_split delimiter_sexp str_sexp env pos
+    | List ([Symbol ("split", _); delimiter_sexp; str_sexp; Symbol (":keep-empty", _)], pos) -> soluna_eval_split delimiter_sexp str_sexp true env pos
+    | List ([Symbol ("split", _); delimiter_sexp; str_sexp], pos) -> soluna_eval_split delimiter_sexp str_sexp false env pos
     | List ([Symbol ("each", _); Symbol (var_name, _); lst_sexp; body_sexp], pos) -> soluna_eval_each var_name lst_sexp body_sexp env pos
     | List ([Symbol ("while", _); cond_sexp; body_sexp], pos) -> soluna_eval_while cond_sexp body_sexp env pos
     | List ((h :: t), pos) -> soluna_eval_list_form (List ((h :: t), pos)) env
@@ -247,7 +248,7 @@ let rec soluna_eval sexp (env: env) =
     | Symbol (s, pos) when String.length s > 1 && s.[0] = ':' -> String (s, pos)
     | Symbol (s, pos) -> (try Hashtbl.find env s with | Not_found -> failwith (Printf.sprintf "[%s] %s:%d%s -> Unbound symbol '%s'" error_msg (font_blue ^ pos.filename) pos.line font_rst s))
     | _ -> failwith (Printf.sprintf "[%s] -> soluna_eval is missing something" internal_msg)
-and soluna_eval_split delimiter_sexp str_sexp env pos =
+and soluna_eval_split delimiter_sexp str_sexp keep_empty env pos =
     let delimiter = soluna_eval delimiter_sexp env in
     match delimiter with
     | String (d, _) -> begin
@@ -263,7 +264,12 @@ and soluna_eval_split delimiter_sexp str_sexp env pos =
             let rec split_aux lst acc =
                 match lst with
                 | [] -> List (List.rev acc, pos)
-                | h :: t -> split_aux t (String (h, pos) :: acc)
+                | h :: t -> begin
+                    if keep_empty then split_aux t (String (h, pos) :: acc)
+                    else match String.length h with
+                    | 0 -> split_aux t acc
+                    | _ -> split_aux t (String (h, pos) :: acc)
+                end
             in
             split_aux str_lst []
         end

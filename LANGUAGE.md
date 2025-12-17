@@ -1,4 +1,4 @@
-# Soluna Language Documentation (v0.4.3)
+# Soluna Language Documentation (v0.4.4)
 
 ---
 
@@ -63,7 +63,7 @@ Primitives always evaluate their arguments before execution.
 | `length` | Returns sequence length | `(length sequence)` | List, String, Dict |
 | `explode` | Converts a string to character list | `(explode "string")` | String |
 | `implode` | Concatenates string list into one string | `(implode list-of-strings)` | List |
-| `split` | Split a string into a string list based on a delimiter | `(split delimiter string)` | List |
+| `split` | Split a string into a string list based on a delimiter. You can also add `:keep-empty` to keep empty elements that happens for each occurence of adjacent delimiters | `(split delimiter string)` | List |
 
 ---
 
