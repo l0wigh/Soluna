@@ -29,9 +29,9 @@ You need to build the missing tools by yourself
 
 ## Oracle REPL
 
-<p align="center" width="100%">
-    <img src="https://raw.githubusercontent.com/l0wigh/Soluna/refs/heads/master/oracle.png">
-</p>
+<!-- <p align="center" width="100%"> -->
+<!--     <img src="https://raw.githubusercontent.com/l0wigh/Soluna/refs/heads/master/oracle.png"> -->
+<!-- </p> -->
 
 You can use the builtin REPL called Oracle when starting Soluna without argument.
 
