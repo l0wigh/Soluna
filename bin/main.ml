@@ -94,7 +94,7 @@ let soluna_read_file filename =
         close_in ic;
         content
     with
-    | Sys_error msg -> failwith (Printf.sprintf "[%s] -> Cannot open or read file %s: %s" error_msg filename msg)
+    | Sys_error msg -> failwith (Printf.sprintf "[%s] -> Cannot open or read file %s" error_msg msg)
     | e -> close_in_noerr (open_in filename); raise e
 
 let rec soluna_get_string sexp str =
