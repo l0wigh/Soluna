@@ -1,0 +1,12 @@
+(defvar x "Shadowed variable. Still the same")
+
+(writeln (bind x (explode "Soluna") (reverse x) (implode x)))
+(writeln (bind x
+	(list 1 2)
+	(reverse x)
+	(cons 3 x)
+	(reverse x)
+	(map (lambda (i) (* i 2)) x)
+))
+
+; Try to include the file in Oracle and enter x to see the unchanged variable

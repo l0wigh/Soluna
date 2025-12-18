@@ -1,0 +1,93 @@
+; Multiple type pattern matching
+(function test-atom (val)
+	(match val
+		(42 "The Ultimate Question of Life, the Universe and Everything")
+		(true "Only the truth")
+		("or" "Alchemy worked")
+		(_
+			(bind x
+				(list "Unknown, so useless: ")
+				(reverse x)
+				(cons val x)
+				(reverse x)
+				(implode x)
+			)
+		)
+	)
+)
+(writeln (test-atom 42))
+(writeln (test-atom true))
+(writeln (test-atom "or"))
+(writeln (test-atom "Javascript"))
+(writeln "")
+
+; Pattern matching that count length of strings and lists
+(function count (seq)
+	(match seq
+		("" 0)
+		((list) 0)
+		((hd :: tl) (+ 1 (count tl)))
+	)
+)
+(writeln
+	(bind x
+		"Soluna"
+		(count x)
+		(str x)
+		(cons x (reverse (explode "String length using recursion and 'match': ")))
+		(reverse x)
+		(implode x)
+	)
+)
+(writeln
+	(bind x
+		(list 1 2 3 4)
+		(count x)
+		(str x)
+		(cons x (reverse (explode "List length using recursion and 'match': ")))
+		(reverse x)
+		(implode x)
+	)
+)
+(writeln "")
+
+; Pattern matching list with specific cases using when keyword
+(function analyse-move (move)
+	(match move
+		(("expense" :: value) (when (> (fst value) 100))
+			"Excessive Expense !")
+		(("expense" :: value) (when (= (null value) false))
+			(bind x
+				"Authorized Expense: "
+				(explode x)
+				(reverse x)
+				(cons (str (fst value)) x)
+				(cons "$" x)
+				(reverse x)
+				(implode x)
+			)
+		)
+		(("income" :: value) (when (= (null value) false)) "More Money !")
+		(_ "Suspicious Transaction")
+	)
+)
+(writeln (analyse-move (list "expense" 500)))
+(writeln (analyse-move (list "expense" 29)))
+(writeln (analyse-move (list "income" 1000)))
+(writeln (analyse-move (list "income")))
+(writeln "")
+
+; Pattern matching nested lists
+(function nested (val)
+	(match val
+		(("user" (id "admin"))
+			(implode (reverse (cons (str id) (reverse (explode "Admin ID: ")))))
+		)
+		(("user" (id _))
+			(implode (reverse (cons (str id) (reverse (explode "User ID: ")))))
+		)
+		(_ "Invalid structure")
+	)
+)
+(writeln (nested (list "user" (list 2 "admin"))))
+(writeln (nested (list "user" (list 12 "guest"))))

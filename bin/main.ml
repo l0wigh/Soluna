@@ -186,6 +186,33 @@ let soluna_apply_arithmetic art args =
         Number (result, unknown_pos)
     end
 
+let rec soluna_unify pattern value env =
+    match pattern, value with
+    | Symbol ("_", _), _ -> true
+    | Symbol ("default", _), _ -> true
+    | Symbol (name, _), _ -> begin
+        Hashtbl.replace env name value;
+        true
+    end
+    | Number (a, _), Number (b, _) -> a = b
+    | Boolean (a, _), Boolean (b, _) -> a = b
+    | String (a, _), String (b, _) -> a = b
+    | List ([h; Symbol ("::", _); t], _), List (vh :: vt, pos) -> soluna_unify h vh env && soluna_unify t (List (vt, pos)) env
+    | List ([h; Symbol ("::", _); t], _), String (s, pos) when String.length s > 0 -> begin
+        let ch = String.make 1 s.[0] in
+        let st = String.sub s 1 (String.length s - 1) in
+        soluna_unify h (String (ch, pos)) env && soluna_unify t (String (st, pos)) env
+    end
+    | List ([], _), List ([], _) -> true
+    | List ([], _), String ("", _) -> true
+    | List (p_elems, _), List (v_elems, _) -> soluna_unify_list p_elems v_elems env
+    | _ -> false
+and soluna_unify_list p_list v_list env =
+    match p_list, v_list with
+    | [], [] -> true
+    | p :: ps, v :: vs -> soluna_unify p v env && soluna_unify_list ps vs env
+    | _ -> false
+
 let rec soluna_eval sexp (env: env) =
     match sexp with
     | Number _  | Boolean _ -> sexp 
@@ -238,16 +265,59 @@ let rec soluna_eval sexp (env: env) =
         ) params_list in
         Lambda (params_names, body_sexp, env)
     end
+    | List (Symbol ("bind", _) :: Symbol (keeper, _) :: sexp_list, pos) -> soluna_eval_link keeper sexp_list env pos
     | List ([Symbol ("split", _); delimiter_sexp; str_sexp; Symbol (":keep-empty", _)], pos) -> soluna_eval_split delimiter_sexp str_sexp true env pos
     | List ([Symbol ("split", _); delimiter_sexp; str_sexp], pos) -> soluna_eval_split delimiter_sexp str_sexp false env pos
     | List ([Symbol ("each", _); Symbol (var_name, _); lst_sexp; body_sexp], pos) -> soluna_eval_each var_name lst_sexp body_sexp env pos
     | List ([Symbol ("while", _); cond_sexp; body_sexp], pos) -> soluna_eval_while cond_sexp body_sexp env pos
+    | List (Symbol ("match", _) :: target_sexp :: clauses_sexp, pos) -> soluna_eval_match target_sexp clauses_sexp env pos
     | List ((h :: t), pos) -> soluna_eval_list_form (List ((h :: t), pos)) env
     | List ([], _) -> sexp
     | String (s, pos) -> String (s, pos)
     | Symbol (s, pos) when String.length s > 1 && s.[0] = ':' -> String (s, pos)
     | Symbol (s, pos) -> (try Hashtbl.find env s with | Not_found -> failwith (Printf.sprintf "[%s] %s:%d%s -> Unbound symbol '%s'" error_msg (font_blue ^ pos.filename) pos.line font_rst s))
     | _ -> failwith (Printf.sprintf "[%s] -> soluna_eval is missing something" internal_msg)
+and soluna_eval_match target_sexp clauses_sexp env pos =
+    let target = soluna_eval target_sexp env in
+    let rec check_clauses clauses =
+        match clauses with
+        | List (pattern :: action_part, _) :: rest -> begin
+            let local_env = Hashtbl.copy env in
+            if soluna_unify pattern target local_env then
+                begin
+                    match action_part with
+                    | List ([Symbol ("when", _); guard_sexp], _) :: [body_sexp] -> 
+                        begin
+                            match soluna_eval guard_sexp local_env with
+                            | Boolean (true, _) -> soluna_eval body_sexp local_env
+                            | _ -> check_clauses rest
+                        end
+                    | [body_sexp] -> soluna_eval body_sexp local_env
+                    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Invalid pattern in 'match'" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+                end
+            else
+                check_clauses rest 
+        end
+        | [] -> failwith (Printf.sprintf "[%s] %s:%d%s -> No pattern matched the value" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+        | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Invalid pattern in 'match'" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+    in
+    check_clauses clauses_sexp
+and soluna_eval_link keeper sexp_list env pos =
+    match sexp_list with
+    | [] -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'link' requires at least an initial value" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+    | initial :: rest -> begin
+        let initial_value = soluna_eval initial env in
+        let local_env = Hashtbl.copy env in
+        let rec link_aux steps curr_val =
+            match steps with
+            | [] -> curr_val
+            | next :: remaining -> begin
+                Hashtbl.replace local_env keeper curr_val;
+                soluna_eval next local_env |> link_aux remaining
+            end
+        in
+        link_aux rest initial_value
+    end
 and soluna_eval_split delimiter_sexp str_sexp keep_empty env pos =
     let delimiter = soluna_eval delimiter_sexp env in
     match delimiter with
@@ -412,7 +482,13 @@ let soluna_apply_comp op args =
         | 0 -> Boolean (true, pos)
         | _ -> Boolean (false, pos)
     end
-    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Comparison requires two arguments of the same type (string or int)" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+    | [Boolean (a, _); Boolean (b, _)] -> begin
+        match a, b with
+        | true, true -> Boolean (true, pos)
+        | false, false -> Boolean (true, pos)
+        | _ -> Boolean (false, pos)
+    end
+    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Comparison requires two arguments of the same type (boolean, string or int)" error_msg (font_blue ^ pos.filename) pos.line font_rst)
 
 let soluna_apply_modulo args =
     let pos = soluna_token_pos args in
@@ -827,6 +903,7 @@ let soluna_init_env () : env =
     Hashtbl.replace env "<" (Primitive (soluna_apply_comp (<)));
     Hashtbl.replace env ">" (Primitive (soluna_apply_comp (>)));
     Hashtbl.replace env "=" (Primitive (soluna_apply_comp (=)));
+    Hashtbl.replace env "!=" (Primitive (soluna_apply_comp (!=)));
     Hashtbl.replace env ">=" (Primitive (soluna_apply_comp (>=)));
     Hashtbl.replace env "<=" (Primitive (soluna_apply_comp (<=)));
     Hashtbl.replace env "mod" (Primitive soluna_apply_modulo); 

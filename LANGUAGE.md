@@ -12,7 +12,7 @@ Special forms control how their arguments are evaluated and enable control flow 
 | `function` | Defines a named reusable function | `(function name (param1 ...) body)` |
 | `lambda` | Creates an anonymous function (closure) | `(lambda (param1 ...) body)` |
 | `if` | Evaluates a condition and executes one of two branches | `(if condition then-expr else-expr)` |
-| `case` | Multi-branch conditional expression | `(case (test1 result1) ... (default default-result))` |
+| `case` | Multi-branch conditional expression | `(case ((test1) result1) ... (default default-result))` |
 | `do` | Executes expressions sequentially and returns the last result | `(do expr1 expr2 ... last-expr)` |
 | `each` | Iterates over a list, binding each value | `(each var-name list-expr body)` |
 | `while` | Executes body while condition is true | `(while condition-expr body)` |

@@ -16,7 +16,7 @@ The documentation can be found [here](https://github.com/l0wigh/Soluna/blob/mast
 ## What's builtin ?
 
 - lambda and function: functions is basically syntactic sugar for lambdas
-- do: let you do multiple operations and yet return nothing ! (trust me it's useful)
+- do: let you do multiple operations and yet return only the last expression ! (trust me it's useful)
 - list: let you create a list
 - fst: gives you the first item of a list
 - rst: gives you the list without the first element
