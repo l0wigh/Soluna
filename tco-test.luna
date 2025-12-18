@@ -1,13 +1,4 @@
-(function count-tco (seq acc)
-	(match seq
-		("" acc)
-		((hd :: tl) (count-tco tl (+ 1 acc)))
-	)
-)
-
-(function create_list (start limit acc) (
-	(if (= start limit) acc ())
-	(create_list (+ 1 start) limit (cons start acc))
-))
-
-(defvar big (create_list 0 20000 (list)))
+(function create_list (start limit acc)
+    (if (= start limit)
+        acc
+        (create_list (+ 1 start) limit (cons start acc))))
