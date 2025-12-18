@@ -1,4 +1,0 @@
-(function create_list (start limit acc)
-    (if (= start limit)
-        acc
-        (create_list (+ 1 start) limit (cons start acc))))

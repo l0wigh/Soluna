@@ -1,4 +1,4 @@
-# Soluna Language Documentation (v0.4.4)
+# Soluna Language Documentation (v0.5.0)
 
 ---
 
@@ -13,17 +13,14 @@ Special forms control how their arguments are evaluated and enable control flow 
 | `lambda` | Creates an anonymous function (closure) | `(lambda (param1 ...) body)` |
 | `if` | Evaluates a condition and executes one of two branches | `(if condition then-expr else-expr)` |
 | `case` | Multi-branch conditional expression | `(case ((test1) result1) ... (default default-result))` |
+| `match` | Pattern matching. Take a look [here](https://github.com/l0wigh/Soluna/blob/master/examples/match.luna)| `(match ((pattern) expr) ... (default expr))` |
 | `do` | Executes expressions sequentially and returns the last result | `(do expr1 expr2 ... last-expr)` |
+| `bind` | Pipe functions using a Symbol that carry the return values | `(bind res_symbol (initial_expr) (expr2 x) (expr3 x something) ... (expr3 x))` |
 | `each` | Iterates over a list, binding each value | `(each var-name list-expr body)` |
 | `while` | Executes body while condition is true | `(while condition-expr body)` |
 | `include` | Loads and evaluates another Soluna file | `(include "filepath")` |
-| `true` | Boolean constant | `true` |
-| `false` | Boolean constant | `false` |
 | `default` | Final fallback clause for `case` | `default` |
 | `eval` | Evaluate an S-expression | `(eval "(+ 2 3)")` |
-| `type` | Give the type of an expression | `(type "Hello World")` |
-| `int` | Convert a String to a Number | `(int "16")` |
-| `str` | Convert a Number to a String | `(str 16)` |
 | `:overwrite` | File write mode | `:overwrite` |
 | `:append` | File write mode | `:append` |
 
@@ -44,7 +41,11 @@ Primitives always evaluate their arguments before execution.
 | `< >` | Comparison operators | `(< a b)` | Number, String |
 | `=` | Equality comparison | `(= a b)` | Number, String |
 | `<= >=` | Inclusive comparison | `(<= a b)` | Number |
-| `num` | Checks if value is a number | `(num value)` | Any |
+| `int` | Convert a String to a Number | `(int "16")` |
+| `str` | Convert a Number to a String | `(str 16)` |
+| `true` | Boolean constant | `true` |
+| `false` | Boolean constant | `false` |
+| `type` | Give the type of an expression | `(type "Hello World")` |
 
 ---
 
@@ -64,6 +65,7 @@ Primitives always evaluate their arguments before execution.
 | `explode` | Converts a string to character list | `(explode "string")` | String |
 | `implode` | Concatenates string list into one string | `(implode list-of-strings)` | List |
 | `split` | Split a string into a string list based on a delimiter. You can also add `:keep-empty` to keep empty elements that happens for each occurence of adjacent delimiters | `(split delimiter string)` | List |
+| `range` | Create a list of number using a start and an end value | `(range start end)` | List |
 
 ---
 
@@ -93,4 +95,3 @@ Primitives always evaluate their arguments before execution.
 | `write-file` | Writes to a file | `(write-file "path" "content" mode)` | String |
 
 ---
-

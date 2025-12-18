@@ -1,0 +1,2 @@
+(defvar x (range 1 1000))
+(writeln (length x))
