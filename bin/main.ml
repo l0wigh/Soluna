@@ -518,6 +518,26 @@ let soluna_write_primitive env mode args =
 
 let soluna_list_primitive args = List (args, unknown_pos)
 
+let soluna_concat_primitive args =
+    let pos = soluna_token_pos args in
+    match args with
+    | [] -> List ([], pos)
+    | String (_, _) :: _ -> let rec join_strings all_args acc =
+        match all_args with
+        | [] -> acc
+        | String (s, _) :: rest -> join_strings rest (acc ^ s)
+        | _ -> failwith (Printf.sprintf "[%s] -> 'concat' cannot mix Strings and other types" error_msg)
+        in
+        String (join_strings args "", pos)
+    | List (_, _) :: _ -> let rec join_lists all_args acc =
+       match all_args with
+       | [] -> List (acc, pos)
+       | List (elements, _) :: rest -> join_lists rest (acc @ elements)
+       | _ -> failwith (Printf.sprintf "[%s] -> 'concat' cannot mix Lists and other types" error_msg)
+       in
+       join_lists args []
+    | _ -> failwith (Printf.sprintf "[%s] -> 'concat' requires Lists or Strings" error_msg)
+
 let soluna_range_primitive args =
     let pos = soluna_token_pos args in
     let rec range_aux start_v end_v acc =
@@ -613,6 +633,31 @@ let soluna_filter_primitive args =
         filter_aux lst
     end
     | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'filter' requires exactly a function and a list" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+
+let soluna_reduce_primitive args =
+    let pos = soluna_token_pos args in
+    let rec reduce_aux fn acc list =
+        match list with
+        | [] -> acc
+        | h :: t -> begin
+            let new_acc = match fn with
+            | Primitive f -> f [acc; h]
+            | Lambda (params, body, lambda_env) -> begin
+                if List.length params <> 2 then failwith (Printf.sprintf "[%s] %s:%d%s -> 'reduce' function must take exactly two arguments" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+                else begin
+                    let local_env = Hashtbl.copy lambda_env in
+                    List.iter2 (Hashtbl.replace local_env) params [acc; h];
+                    soluna_eval body local_env
+                end
+            end
+            | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'reduce' requires a callable function" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+        in
+        reduce_aux fn new_acc t
+        end
+    in
+    match args with
+    | [fn_sexp; initial_acc; List (elements, _)] -> reduce_aux fn_sexp initial_acc elements
+    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'reduce' requires (function initial_value list)" error_msg (font_blue ^ pos.filename) pos.line font_rst)
 
 let soluna_reverse_primitive args =
     let pos = soluna_token_pos args in
@@ -903,18 +948,6 @@ let soluna_dict_contains_primitive args =
     end
     | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'dict-contains' requires a dictionnary and a key as arguments" error_msg (font_blue ^ pos.filename) pos.line font_rst)
 
-(* The concept of Internal Pure functions come from the fact
-    that I suck at coding in OCaml and I want an easier way to extend the language *)
-let soluna_pure_reduce_primitive env =
-    let code = "(function reduce (f init lst) (do (defvar acc init) (each x lst (defvar acc (f acc x))) acc))"
-        |> String.to_seq
-        |> List.of_seq
-    in
-    let parsed_code = soluna_tokenizer "" [] code 1 "Pure-Internal" in
-    let program = soluna_read_program parsed_code [] in
-    List.iter (fun sexp -> let _ = soluna_eval sexp env in ()) program;
-    ()
-
 let soluna_init_env () : env =
     let env = Hashtbl.create 20 in 
     Hashtbl.replace env "+" (Primitive (soluna_arithmetic_primitive (+))); 
@@ -931,6 +964,7 @@ let soluna_init_env () : env =
     Hashtbl.replace env "write" (Primitive (soluna_write_primitive env false));
     Hashtbl.replace env "writeln" (Primitive (soluna_write_primitive env true));
     Hashtbl.replace env "list" (Primitive soluna_list_primitive);
+    Hashtbl.replace env "concat" (Primitive soluna_concat_primitive);
     Hashtbl.replace env "range" (Primitive soluna_range_primitive);
     Hashtbl.replace env "fst" (Primitive soluna_fst_primitive);
     Hashtbl.replace env "rst" (Primitive soluna_rst_primitive);
@@ -938,6 +972,7 @@ let soluna_init_env () : env =
     Hashtbl.replace env "cons" (Primitive soluna_cons_primitive);
     Hashtbl.replace env "map" (Primitive soluna_map_primitive);
     Hashtbl.replace env "filter" (Primitive soluna_filter_primitive);
+    Hashtbl.replace env "reduce" (Primitive soluna_reduce_primitive);
     Hashtbl.replace env "reverse" (Primitive soluna_reverse_primitive);
     Hashtbl.replace env "explode" (Primitive (soluna_explode_primitive env));
     Hashtbl.replace env "implode" (Primitive (soluna_implode_primitive env));
@@ -975,13 +1010,10 @@ let () =
             soluna_read_file filename
             |> String.to_seq
             |> List.of_seq in
-        let parsed_sexp = soluna_tokenizer "" [] parsed_sexp 1 filename in
 
+        let parsed_sexp = soluna_tokenizer "" [] parsed_sexp 1 filename in
         let program = soluna_read_program parsed_sexp [] in
         let global_env = soluna_init_env () in
-
-        soluna_pure_reduce_primitive global_env;
-
         List.iter (fun sexp -> let _ = soluna_eval sexp global_env in ()) program;
     with
     | Failure msg -> flush stdout; Printf.eprintf "\n%s\n" msg; exit 1

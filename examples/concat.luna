@@ -1,0 +1,2 @@
+(writeln (concat "Hello " "from " "Soluna"))
+(writeln (concat (list 1 2) (list 3 4)))
