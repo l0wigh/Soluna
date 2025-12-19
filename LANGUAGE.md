@@ -139,9 +139,9 @@ Pattern matching on values.
 
 ```lisp
 (match value
-  (pattern1) expr1
-  (pattern2) expr2
-  (default) expr)
+  ((pattern1) expr1)
+  ((pattern2) expr2)
+  (default expr))
 ```
 
 Patterns may bind variables and optionally include guards using `(when condition)`.
@@ -228,73 +228,81 @@ Macros are expanded before evaluation.
 
 ## 5. Built-in Functions
 
+This section lists all built-in functions available by default, with short usage examples.
+
+---
+
 ### 5.1 Arithmetic & Logic
 
-| Function    | Description           |
-| ----------- | --------------------- |
-| `+ - * /`   | Arithmetic operations |
-| `mod`       | Modulo                |
-| `< > <= >=` | Comparisons           |
-| `=` `!=`    | Equality              |
-| `int`       | String → int          |
-| `str`       | Value → string        |
-| `type`      | Returns type name     |
+| Function    | Description    | Example               |
+| ----------- | -------------- | --------------------- |
+| `+`         | Addition       | `(+ 1 2 3)` → `6`     |
+| `-`         | Subtraction    | `(- 10 3)` → `7`      |
+| `*`         | Multiplication | `(* 2 4)` → `8`       |
+| `/`         | Division       | `(/ 8 2)` → `4`       |
+| `mod`       | Modulo         | `(mod 10 3)` → `1`    |
+| `< > <= >=` | Comparisons    | `(< 1 2)` → `true`    |
+| `=`         | Equality       | `(= 3 3)` → `true`    |
+| `!=`        | Inequality     | `(!= 3 4)` → `true`   |
+| `int`       | String → int   | `(int "42")` → `42`   |
+| `str`       | Value → string | `(str 42)` → `"42"`   |
+| `type`      | Type name      | `(type 42)` → `"int"` |
 
 ---
 
 ### 5.2 Lists
 
-| Function  | Description     |
-| --------- | --------------- |
-| `list`    | Create list     |
-| `cons`    | Prepend element |
-| `fst`     | First element   |
-| `rst`     | Rest of list    |
-| `null`    | Empty check     |
-| `range`   | Number range    |
-| `concat`  | Concatenate     |
-| `reverse` | Reverse list    |
-| `map`     | Map function    |
-| `filter`  | Filter list     |
-| `reduce`  | Fold list       |
+| Function  | Description     | Example                           |
+| --------- | --------------- | --------------------------------- |
+| `list`    | Create list     | `(list 1 2 3)`                    |
+| `cons`    | Prepend element | `(cons 0 (list 1 2))` → `(0 1 2)` |
+| `fst`     | First element   | `(fst (list 1 2 3))` → `1`        |
+| `rst`     | Rest of list    | `(rst (list 1 2 3))` → `(2 3)`    |
+| `null`    | Empty check     | `(null (list))` → `true`          |
+| `range`   | Number range    | `(range 1 4)` → `(1 2 3)`         |
+| `concat`  | Concatenate     | `(concat (list 1) (list 2 3))`    |
+| `reverse` | Reverse list    | `(reverse (list 1 2))` → `(2 1)`  |
+| `map`     | Map function    | `(map square (list 1 2 3))`       |
+| `filter`  | Filter list     | `(filter even? (list 1 2 3 4))`   |
+| `reduce`  | Fold list       | `(reduce + 0 (list 1 2 3))` → `6` |
 
 ---
 
 ### 5.3 Strings
 
-| Function  | Description        |
-| --------- | ------------------ |
-| `explode` | String → char list |
-| `implode` | Char list → string |
-| `split`   | Split string       |
+| Function  | Description        | Example                    |
+| --------- | ------------------ | -------------------------- |
+| `explode` | String → char list | `(explode "hi")` → `(h i)` |
+| `implode` | Char list → string | `(implode (list 'h' 'i'))` |
+| `split`   | Split string       | `(split "," "a,b,c")`      |
 
 ---
 
 ### 5.4 Dictionaries
 
-| Function        | Description       |
-| --------------- | ----------------- |
-| `dict`          | Create dictionary |
-| `dict-set`      | Set value         |
-| `dict-get`      | Get value         |
-| `dict-ref`      | Get with default  |
-| `dict-remove`   | Remove key        |
-| `dict-contains` | Key exists        |
-| `dict-keys`     | All keys          |
-| `dict-values`   | All values        |
+| Function        | Description       | Example                 |
+| --------------- | ----------------- | ----------------------- |
+| `dict`          | Create dictionary | `(dict)`                |
+| `dict-set`      | Set value         | `(dict-set d "a" 1)`    |
+| `dict-get`      | Get value         | `(dict-get d "a")`      |
+| `dict-ref`      | Get with default  | `(dict-ref d "a" 0)`    |
+| `dict-remove`   | Remove key        | `(dict-remove d "a")`   |
+| `dict-contains` | Key exists        | `(dict-contains d "a")` |
+| `dict-keys`     | All keys          | `(dict-keys d)`         |
+| `dict-values`   | All values        | `(dict-values d)`       |
 
 ---
 
 ### 5.5 I/O
 
-| Function     | Description                           |
-| ------------ | ------------------------------------- |
-| `write`      | Print without newline                 |
-| `writeln`    | Print with newline                    |
-| `input`      | Read input                            |
-| `eval`       | Evaluate code string                  |
-| `read-file`  | Read file                             |
-| `write-file` | Write file (`:overwrite` / `:append`) |
+| Function     | Description           | Example                                |
+| ------------ | --------------------- | -------------------------------------- |
+| `write`      | Print without newline | `(write "Hello")`                      |
+| `writeln`    | Print with newline    | `(writeln "Hello")`                    |
+| `input`      | Read input            | `(input "> ")`                         |
+| `eval`       | Evaluate code string  | `(eval "(+ 1 2)")`                     |
+| `read-file`  | Read file             | `(read-file "a.txt")`                  |
+| `write-file` | Write file            | `(write-file "a.txt" "hi" :overwrite)` |
 
 ---
 
@@ -311,8 +319,8 @@ Macros are expanded before evaluation.
 
 ```lisp
 (match x
-  ((1)) "one"
-  ((2)) "two"
+  ((1) "one")
+  ((2) "two")
   (default "other"))
 ```
 
@@ -344,3 +352,6 @@ List    ::= '(' Expr* ')'
 * Errors raise failures that can be caught with `try`.
 
 ---
+
+**End of Soluna Language Reference**
+
