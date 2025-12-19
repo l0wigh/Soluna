@@ -1,4 +1,4 @@
-let soluna_version = "0.6.2"
+let soluna_version = "0.6.3"
 type soluna_position = { filename: string; line: int; }
 type soluna_expr =
     | Number of int * soluna_position
@@ -103,14 +103,22 @@ let rec soluna_quasiquote_prep s =
 and quasiquote_prep_inner s search replace =
     let len_s = String.length s in
     let len_search = String.length search in
-    let rec loop i acc =
+    let rec loop i acc in_string =
         if i >= len_s then acc
-        else if i <= len_s - len_search && String.sub s i len_search = search then
-            loop (i + len_search) (acc ^ replace)
-        else
-            loop (i + 1) (acc ^ String.make 1 s.[i])
+        else begin
+            let ch = s.[i] in
+            match ch with
+            | '"' -> loop (i + 1) (acc ^ "\"") (not in_string)
+            | _ when in_string -> loop (i + 1) (acc ^ String.make 1 ch) true
+            | _ -> begin
+                if i <= len_s - len_search && String.sub s i len_search = search then
+                    loop (i + len_search) (acc ^ replace) false
+                else
+                    loop (i + 1) (acc ^ String.make 1 s.[i]) false
+            end
+        end
     in
-    loop 0 ""
+    loop 0 "" false
 
 let rec soluna_read_program tok_sexp tok_acc =
     match tok_sexp with

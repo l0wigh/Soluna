@@ -1,6 +1,6 @@
 # Soluna Language Reference
 
-> **Version:** 0.6.2
+> **Version:** 0.6.3
 > **Implementation reference:** `bin/main.ml`
 
 ---
@@ -235,7 +235,7 @@ Example:
 
 ```lisp
 (defmacro unless (cond body)
-  `(if (not ,cond) ,body null))
+  `(if (not ,cond) ,body ()))
 ```
 
 This expands:
@@ -247,7 +247,7 @@ This expands:
 into:
 
 ```lisp
-(if (not x) expr null)
+(if (not x) expr ())
 ```
 
 ---
@@ -297,7 +297,7 @@ Expands to:
 
 ```lisp
 (defmacro when (cond &rest body)
-  `(if ,cond (do ,@body) null))
+  `(if ,cond (do ,@body) ()))
 ```
 
 Usage:
@@ -313,7 +313,7 @@ Expands to:
 ```lisp
 (if x
     (do (write "yes") (write "!"))
-    null)
+    ())
 ```
 
 ---
