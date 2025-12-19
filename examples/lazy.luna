@@ -1,0 +1,16 @@
+; One of the power of macros is the lazy evaluation
+; In this example, we have a function and a macro that does the same thing.
+; The difference is that the macro will be expanded on runtime,
+;   while the function will be already ready to run.
+; When calling the function it will run the writeln even if the condition is false.
+; While the macro since it expand and consider all its argument as "quote", everything will work like it should.
+; (Yes, in this example you could just use a quote symbol to delay the evaluation,
+;   but that does not change the helpfulness of macros. Imagine quoting every arguments of all functions... meh)
+
+(function check (action)
+  (if true () action))
+(check (writeln "Unprotected code, will execute"))
+
+(defmacro check-macro (action)
+  `(if true () ,action ))
+(check-macro (writeln "Protected code"))

@@ -736,6 +736,65 @@ let soluna_rst_primitive args =
     | [List ([], pos)] -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'rst' called on empty list" error_msg (font_blue ^ pos.filename) pos.line font_rst)
     | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'rst' requires exactly one list as argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
 
+let soluna_set_primitve env args =
+    let pos = soluna_token_pos args in
+    match args with
+    | [index_sexp; new_sexp; List (lst, pos)] -> begin
+        let index = soluna_eval index_sexp env in
+        let new_val = soluna_eval new_sexp env in
+        match index with
+        | Number (i, _) -> begin
+            try List (List.mapi (fun pos x -> if i = pos then new_val else x) lst, pos)
+            with
+            | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Index out of bounds" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+        end
+        | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'set' requires a String or a Number to modify a List" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+    end
+    | [index_sexp; new_sexp; String (s, pos)] -> begin
+        let index = soluna_eval index_sexp env in
+        let new_val = soluna_eval new_sexp env in
+        let new_val = match new_val with
+            | String (c, _) -> c
+            | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'set' requires a String to modify a String" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+        in
+        match index with
+        | Number (i, _) -> begin
+            try String (String.mapi (fun pos c -> if pos = i then new_val.[0] else c) s, pos)
+            with
+            | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Index out of bounds" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+        end
+        | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'set' requires a Number, a String or a Number to set and a List or a String" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+    end
+    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'set' requires a Number, a String or a Number to set and a List or a String" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+
+let soluna_get_primitve env args =
+    let pos = soluna_token_pos args in
+    match args with
+    | [index_sexp; List (lst, pos)] -> begin
+        let index = soluna_eval index_sexp env in
+        match index with
+        | Number (i, _) -> begin
+            try
+                List.nth lst i
+            with
+            | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Index out of bounds" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+        end
+        | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'get' requires a Number and a List or a String" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+    end
+    | [index_sexp; String (s, pos)] -> begin
+        let index = soluna_eval index_sexp env in
+        match index with
+        | Number (i, _) -> begin
+            try
+                let ch = String.get s i in
+                String (String.make 1 ch, pos)
+            with
+            | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Index out of bounds" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+        end
+        | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'get' requires a Number and a List or a String" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+    end
+    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'get' requires a Number and a List or a String" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+
 let soluna_null_primitive args =
     let pos = soluna_token_pos args in
     match args with
@@ -1148,6 +1207,8 @@ let soluna_init_env () : env =
     Hashtbl.replace env "range" (Primitive soluna_range_primitive);
     Hashtbl.replace env "fst" (Primitive soluna_fst_primitive);
     Hashtbl.replace env "rst" (Primitive soluna_rst_primitive);
+    Hashtbl.replace env "set" (Primitive (soluna_set_primitve env));
+    Hashtbl.replace env "get" (Primitive (soluna_get_primitve env));
     Hashtbl.replace env "null" (Primitive soluna_null_primitive);
     Hashtbl.replace env "cons" (Primitive soluna_cons_primitive);
     Hashtbl.replace env "map" (Primitive soluna_map_primitive);

@@ -1,0 +1,22 @@
+(defvar lst (list 1 2 3 4))
+(defvar st "Soluna")
+
+(writeln (get 1 lst))
+(writeln (get 0 st))
+(writeln (get 2 (list 1 2 "Hello" 4 5)))
+(writeln (get 3 "1234"))
+
+; On List it uses the full String
+(writeln (set 1 "Yep" lst))
+; While on String it only uses the first char. (It's intended)
+(writeln (set 1 "Yep" "Soluna"))
+; You can obviously pass Sexp as long as they
+;   returns something of a type that match is required
+(writeln (set 1 (+ 2 3) lst))
+
+(try
+	(writeln (get 100 st))
+(err (writeln err)))
+(try
+	(writeln (set 100 10 st))
+(err (writeln err)))
