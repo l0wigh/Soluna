@@ -1,0 +1,21 @@
+(function double () (do
+	(defmacro defvar_double (a b c)
+		`(do (defvar ,a ,c) (defvar ,b ,c)))
+
+	(writeln "Before applying macro")
+	(try (do
+		(writeln (bind val x (str val) (list "x: " val) (implode val))))
+		(e (writeln e)))
+	(try (do
+		(writeln (bind val y (str val) (list "y: " val) (implode val))))
+		(e (writeln e)))
+
+	; This will be excpanded to (do (defvar x (+ 2 3)) (defvar y (+ 2 3)))
+	(defvar_double x y (+ 2 3))
+
+	(writeln "After applying macro")
+	(writeln (implode (list "x: " (str y))))
+	(writeln (implode (list "y: " (str y))))
+))
+
+(double)
