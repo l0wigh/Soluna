@@ -1,0 +1,1 @@
+(if (!= 0 1) (writeln "Yep, 0 != 1") (writeln "Something's wrong, I can feel it"))

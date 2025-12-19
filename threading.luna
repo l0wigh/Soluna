@@ -1,0 +1,5 @@
+(defmacro -> (value op . ops)
+  (if (null ops)
+      `(,(fst op) ,value ,@(rst op))
+      `(-> (,(fst op) ,value ,@(rst op))
+           ,@ops)))

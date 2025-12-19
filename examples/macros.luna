@@ -1,0 +1,36 @@
+(defvar x 10)
+(writeln `(the score is ,x))
+(writeln "")
+
+(defvar my-list (list 2 3))
+(writeln `(1 ,@my-list 4))
+(writeln "")
+
+(defmacro infix (exp) (do
+    (defvar a (fst exp))
+    (defvar op (fst (rst exp)))
+    (defvar b (fst (rst (rst exp))))
+    `(,op ,a ,b)
+))
+(writeln (infix (x + 5)))
+(writeln "")
+
+(defmacro for-range (var start end body)
+  `(do
+     (defvar ,var ,start)
+     (while (< ,var ,end)
+       (do
+         ,@body
+         (defvar ,var (+ ,var 1))))))
+
+(for-range i 0 3
+  ((writeln `(the index is ,i))
+   (writeln `(the square is ,(* i i)))))
+(writeln "")
+
+(defmacro math-chain (init op1 op2)
+  (do
+    (defvar val1 `(,(fst op1) ,init ,(fst (rst op1))))
+    `(,(fst op2) ,val1 ,(fst (rst op2)))))
+
+(writeln (math-chain 5 (+ 10) (* 2)))

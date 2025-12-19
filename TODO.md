@@ -1,2 +1,3 @@
+- Add documentation for let
+- Add documentation for macros
 - Add floats
-- Add fold

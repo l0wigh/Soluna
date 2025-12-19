@@ -1,4 +1,4 @@
-let soluna_version = "0.5.0"
+let soluna_version = "0.6.0"
 type soluna_position = { filename: string; line: int; }
 type soluna_expr =
     | Number of int * soluna_position
@@ -9,6 +9,7 @@ type soluna_expr =
     | Primitive of (soluna_expr list -> soluna_expr)
     | Dict of (string, soluna_expr) Hashtbl.t * soluna_position
     | Lambda of string list * soluna_expr * (string, soluna_expr) Hashtbl.t
+    | Macro of string list * soluna_expr
 type env = (string, soluna_expr) Hashtbl.t
 type soluna_token = { token: string; pos: soluna_position }
 let unknown_pos = { filename = "unknown"; line = 0; }
@@ -57,6 +58,18 @@ let rec soluna_read_tokens token_list =
     | h :: t -> begin
         let pos = h.pos in
         match h.token with
+        | "`" -> begin
+            let expr, rem_token = soluna_read_tokens t in
+            (List ([Symbol ("quasiquote", pos); expr], pos), rem_token)
+        end
+        | ",@" -> begin
+            let expr, rem_token = soluna_read_tokens t in
+            (List ([Symbol ("unquote-splicing", pos); expr], pos), rem_token)
+        end
+        | "," -> begin
+            let expr, rem_token = soluna_read_tokens t in
+            (List ([Symbol ("unquote", pos); expr], pos), rem_token)
+        end
         | "(" -> begin
             let (elements, rem_token) = soluna_read_list [] t in
             (List (elements, pos), rem_token)
@@ -79,6 +92,26 @@ and soluna_read_list token_acc token_list =
         end
     end
 
+let rec soluna_quasiquote_prep s =
+    s
+    |> (fun s -> quasiquote_prep_inner s "(" " ( ")
+    |> (fun s -> quasiquote_prep_inner s ")" " ) ")
+    |> (fun s -> quasiquote_prep_inner s "`" " ` ")
+    |> (fun s -> quasiquote_prep_inner s ",@" " ,@ ")
+    |> (fun s -> quasiquote_prep_inner s "," " , ")
+    |> (fun s -> quasiquote_prep_inner s ", @" ",@")
+and quasiquote_prep_inner s search replace =
+    let len_s = String.length s in
+    let len_search = String.length search in
+    let rec loop i acc =
+        if i >= len_s then acc
+        else if i <= len_s - len_search && String.sub s i len_search = search then
+            loop (i + len_search) (acc ^ replace)
+        else
+            loop (i + 1) (acc ^ String.make 1 s.[i])
+    in
+    loop 0 ""
+
 let rec soluna_read_program tok_sexp tok_acc =
     match tok_sexp with
     | [] -> List.rev tok_acc
@@ -88,14 +121,17 @@ let rec soluna_read_program tok_sexp tok_acc =
     end
 
 let soluna_read_file filename =
-    try
-        let ic = open_in filename in
-        let content = really_input_string ic (in_channel_length ic) in
-        close_in ic;
-        content
-    with
-    | Sys_error msg -> failwith (Printf.sprintf "[%s] -> Cannot open or read file %s" error_msg msg)
-    | e -> close_in_noerr (open_in filename); raise e
+   try
+      let ic = open_in filename in
+      let content = really_input_string ic (in_channel_length ic) in
+      close_in ic;
+      let prepared = 
+         content |> soluna_quasiquote_prep
+      in
+      prepared
+   with
+   | Sys_error msg -> failwith (Printf.sprintf "Cannot open file %s" msg)
+   | e -> raise e
 
 let rec soluna_get_string sexp str =
     match sexp with
@@ -115,7 +151,7 @@ let rec soluna_get_string sexp str =
 let soluna_get_pos sexp =
     match sexp with
     | Number (_, pos) | Symbol (_, pos) | Boolean (_, pos) | String (_, pos) | List (_, pos) -> pos
-    | Primitive _ | Lambda _ | Dict _ -> unknown_pos
+    | Primitive _ | Lambda _ | Dict _ | Macro _ -> unknown_pos
 
 let soluna_token_pos args =
     match args with
@@ -171,6 +207,7 @@ let rec soluna_string_of_sexp sexp =
   | Primitive _ -> Printf.sprintf "Primitive"
   | String (h, _) -> Printf.sprintf "%s" h
   | Lambda _ -> Printf.sprintf "Lambda"
+  | Macro _ -> Printf.sprintf "Macro"
 
 let rec soluna_unify pattern value env =
     match pattern, value with
@@ -199,6 +236,30 @@ and soluna_unify_list p_list v_list env =
     | p :: ps, v :: vs -> soluna_unify p v env && soluna_unify_list ps vs env
     | _ -> false
 
+let rec soluna_assemble_list elements pos =
+    match elements with
+    | [] -> List ([], pos)
+    | List ([Symbol ("splicing", _); expr], _) :: rest -> List ([Symbol ("concat", pos); expr; soluna_assemble_list rest pos], pos)
+    | h :: t -> begin
+        let head_list = List ([Symbol ("list", pos); h], pos) in
+        List ([Symbol ("concat", pos); head_list; soluna_assemble_list t pos], pos)
+    end
+
+let rec soluna_expand_quasiquote sexp level =
+    match sexp with
+    | List ([Symbol ("unquote", _); expr], _) -> if level = 1 then expr else sexp
+    | List ([Symbol ("unquote-splicing", _); expr], pos) -> if level = 1 then List ([Symbol ("splicing", pos); expr], pos) else sexp
+    | List ([Symbol ("quasiquote", _); expr], _) -> soluna_expand_quasiquote expr (level + 1)
+    | List (elements, pos) -> begin
+        let expanded_elements = List.map (fun e -> soluna_expand_quasiquote e level) elements in
+        soluna_assemble_list expanded_elements pos
+    end
+    | atom -> begin
+        match atom with
+        | Symbol (_, pos) -> List ([Symbol ("quote", pos); atom], pos)
+        | _ -> atom
+    end
+
 let rec soluna_eval sexp (env: env) =
     match sexp with
     | Number _  | Boolean _ -> sexp 
@@ -211,6 +272,47 @@ let rec soluna_eval sexp (env: env) =
         | Invalid_argument _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Cannot redefine immutable variable: %s" error_msg (font_blue ^ pos.filename) pos.line name font_rst)
         end;
         bind
+    end
+
+    | List (Symbol ("let", _) :: List (bindings, _) :: body_sexp, pos) -> begin
+        let local_env = Hashtbl.copy env in
+        List.iter (function
+        | List ([Symbol (name, _); expr], _) -> begin
+            let value = soluna_eval expr env in
+            Hashtbl.replace local_env name value
+        end
+        | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Wrong 'let' syntax. You should pass local variables this way ((x 1) (y 2))" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+        ) bindings;
+        match body_sexp with
+        | [] -> Symbol ("nil", pos)
+        | _ -> soluna_eval (List (Symbol ("do", pos) :: body_sexp, pos)) local_env
+    end
+
+    | List (Symbol ("let*", _) :: List (bindings, _) :: body_sexp, pos) -> begin
+        let curr_env = ref env in
+        List.iter (function
+        | List ([Symbol (name, _); expr], _) -> begin
+            let local_env = Hashtbl.copy !curr_env in
+            let value = soluna_eval expr !curr_env in
+            Hashtbl.replace local_env name value;
+            curr_env := local_env
+        end
+        | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Wrong 'let*' syntax. You should pass local variables this way ((x 1) (y 2))" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+        ) bindings;
+        match body_sexp with
+        | [] -> Symbol ("nil", pos)
+        | _ -> soluna_eval (List (Symbol ("do", pos) :: body_sexp, pos)) !curr_env
+    end
+
+    | List ([Symbol ("defmacro", _); Symbol (name, _); List (params, _); body], pos) -> begin
+        let param_names = List.map (function | Symbol (s, _) -> s | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'defmacro' requires Symbols as arguments" error_msg (font_blue ^ pos.filename) pos.line font_rst)) params in
+        let macro = Macro (param_names, body) in
+        begin try
+            Hashtbl.add env name macro;
+        with
+        | Invalid_argument _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Cannot redefine immutable variable: %s" error_msg (font_blue ^ pos.filename) pos.line name font_rst)
+        end;
+        Symbol (name, pos)
     end
 
     | List ([Symbol ("try", _); main_sexp ; List ([Symbol (catch_var, _); handler_sexp], _)], pos) -> begin
@@ -255,7 +357,12 @@ let rec soluna_eval sexp (env: env) =
         Lambda (params_names, body_sexp, env)
     end
 
+    | List ([Symbol ("quasiquote", _); expr], _) -> begin
+        let expanded_sexp = soluna_expand_quasiquote expr 1 in
+        soluna_eval expanded_sexp env
+    end
 
+    | List ([Symbol ("quote", _); expr], _) -> expr
     | List ([Symbol ("include", _); String (filename, _)], pos) -> soluna_include_file filename pos env
     | List ((Symbol ("case", _) :: clauses), pos) -> soluna_eval_case clauses pos env
     | List (Symbol ("bind", _) :: Symbol (keeper, _) :: sexp_list, pos) -> soluna_eval_bind keeper sexp_list env pos
@@ -409,20 +516,30 @@ and soluna_eval_list_form sexp env =
     | List ((Symbol ("do", _) :: expr_list), _) -> soluna_eval_do expr_list env
     | List ((h :: t), pos) -> begin
         let op = soluna_eval h env in
-        let args = List.map (fun arg -> soluna_eval arg env) t in
-        (
             match op with
-            | Primitive fn -> fn args
+            | Primitive fn -> begin
+                let args = List.map (fun arg -> soluna_eval arg env) t in
+                fn args
+            end
             | Lambda (params, body, lambda_env) -> begin
+                let args = List.map (fun arg -> soluna_eval arg env) t in
                 if List.length params <> List.length args then
-                    failwith (Printf.sprintf "Solune [%s] %s:%d%s -> Wrong number of arguments passed to function" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+                    failwith (Printf.sprintf "[%s] %s:%d%s -> Wrong number of arguments passed to function" error_msg (font_blue ^ pos.filename) pos.line font_rst)
                 else
                     let local_env = Hashtbl.copy lambda_env in
                     List.iter2 (fun name value -> Hashtbl.replace local_env name value) params args;
                     soluna_eval body local_env
             end
-            | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Expected a symbol. You might need to use 'do'" error_msg (font_blue ^ pos.filename) pos.line font_rst)
-        )
+            | Macro (params, body) -> begin
+                let macro_env = Hashtbl.copy env in
+                if List.length params <> List.length t then
+                    failwith (Printf.sprintf "[%s] %s:%d%s -> Wrong number of arguments passed to function" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+                else
+                    List.iter2 (fun p a -> Hashtbl.add macro_env p a) params t;
+                    let expanded_code = soluna_eval body macro_env in
+                    soluna_eval expanded_code env
+            end
+            | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Expected a Symbol. You might need to use 'do'" error_msg (font_blue ^ pos.filename) pos.line font_rst)
     end
     | _ -> failwith (Printf.sprintf "[%s] -> soluna_eval_list_form called with non-list expression" internal_msg)
 
@@ -747,7 +864,7 @@ let soluna_eval_primitive env args =
         let sexp_to_eval = soluna_eval eval_sexp env in
         match sexp_to_eval with
         | String (s, _) -> begin
-            let parsed_sexp = String.to_seq s |> List.of_seq in
+            let parsed_sexp = soluna_quasiquote_prep s |> String.to_seq |> List.of_seq in
             let parsed_sexp = soluna_tokenizer "" [] parsed_sexp 1 "runtime" in
             let program = soluna_read_program parsed_sexp [] in
             let rec eval_program program =
@@ -773,6 +890,7 @@ let soluna_type_primitive args =
         | Number (_, _) -> String ("Number", pos)
         | String (_, _) -> String ("String", pos)
         | Lambda (_, _, _) -> String ("Lambda", pos)
+        | Macro (_, _) -> String ("Macro", pos)
         | List (_, _) -> String ("List", pos)
         | Boolean (_, _) -> String ("Boolean", pos)
         | Primitive _ -> String ("Primitive", pos)

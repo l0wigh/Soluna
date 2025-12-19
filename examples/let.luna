@@ -1,0 +1,13 @@
+(defvar x 10)
+(writeln x)
+
+(let ((x 5) (y 15))
+  (writeln x)
+  (writeln y))
+(writeln x)
+
+(do 
+  (defvar x 5)
+  (writeln x))
+(writeln x)
+
