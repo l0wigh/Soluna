@@ -1,97 +1,346 @@
-# Soluna Language Documentation (v0.5.0)
+# Soluna Language Reference
+
+> **Version:** 0.6.0
+> **Implementation reference:** `bin/main.ml`
 
 ---
 
-## Available Keywords (Special Forms)
+## 1. Lexical Elements
 
-Special forms control how their arguments are evaluated and enable control flow constructs.
+### 1.1 Atoms
 
-| Keyword | Description | Syntax |
-|------|------------|--------|
-| `defvar` | Defines and initializes an immutable variable | `(defvar name value)` |
-| `function` | Defines a named reusable function | `(function name (param1 ...) body)` |
-| `lambda` | Creates an anonymous function (closure) | `(lambda (param1 ...) body)` |
-| `if` | Evaluates a condition and executes one of two branches | `(if condition then-expr else-expr)` |
-| `case` | Multi-branch conditional expression | `(case ((test1) result1) ... (default default-result))` |
-| `match` | Pattern matching. Take a look [here](https://github.com/l0wigh/Soluna/blob/master/examples/match.luna)| `(match ((pattern) expr) ... (default expr))` |
-| `do` | Executes expressions sequentially and returns the last result | `(do expr1 expr2 ... last-expr)` |
-| `bind` | Pipe functions using a Symbol that carry the return values | `(bind res_symbol (initial_expr) (expr2 x) (expr3 x something) ... (expr3 x))` |
-| `each` | Iterates over a list, binding each value | `(each var-name list-expr body)` |
-| `while` | Executes body while condition is true | `(while condition-expr body)` |
-| `include` | Loads and evaluates another Soluna file | `(include "filepath")` |
-| `default` | Final fallback clause for `case` | `default` |
-| `eval` | Evaluate an S-expression | `(eval "(+ 2 3)")` |
-| `:overwrite` | File write mode | `:overwrite` |
-| `:append` | File write mode | `:append` |
+* **Numbers**: integers (e.g. `42`, `-7`)
+* **Booleans**: `true`, `false`
+* **Strings**: `"hello"`, supports escape sequences (`\n`, `\t`, etc.)
+* **Symbols**: identifiers for variables, functions, and macros
+
+### 1.2 Lists
+
+Lists are written using parentheses:
+
+```lisp
+(expr1 expr2 expr3)
+```
+
+The first element determines how the list is evaluated.
 
 ---
 
-## Built-in Primitives (Functions)
+## 2. Evaluation Model
 
-Primitives always evaluate their arguments before execution.
+* Atoms evaluate to themselves (except symbols).
+* Symbols evaluate to their bound value.
+* Lists are evaluated as:
 
----
-
-## I. Core Types & Arithmetic
-
-| Primitive | Description | Syntax | Types |
-|---------|------------|--------|------|
-| `+ - * /` | Standard arithmetic operations | `(+ n1 n2 ...)` | Number |
-| `mod` | Remainder of division | `(mod n1 n2)` | Number |
-| `< >` | Comparison operators | `(< a b)` | Number, String |
-| `=` | Equality comparison | `(= a b)` | Number, String |
-| `<= >=` | Inclusive comparison | `(<= a b)` | Number |
-| `int` | Convert a String to a Number | `(int "16")` |
-| `str` | Convert a Number to a String | `(str 16)` |
-| `true` | Boolean constant | `true` |
-| `false` | Boolean constant | `false` |
-| `type` | Give the type of an expression | `(type "Hello World")` |
+  * **Special forms** (custom evaluation rules)
+  * **Macros** (expanded before evaluation)
+  * **Function calls** (arguments evaluated first)
 
 ---
 
-## II. Lists & Sequences
+## 3. Special Forms
 
-| Primitive | Description | Syntax | Types |
-|---------|------------|--------|------|
-| `list` | Creates a list | `(list e1 e2 ...)` | Any |
-| `cons` | Prepends an element to a list | `(cons element list)` | Any, List |
-| `fst` | Returns the first element | `(fst list)` | List |
-| `rst` | Returns the rest of the list | `(rst list)` | List |
-| `null` | Checks for empty list or dict | `(null sequence)` | List, Dict |
-| `reverse` | Reverses a list | `(reverse list)` | List |
-| `map` | Applies a function to each element | `(map function list)` | Function, List |
-| `filter` | Filters elements using a predicate | `(filter predicate list)` | Function, List |
-| `length` | Returns sequence length | `(length sequence)` | List, String, Dict |
-| `explode` | Converts a string to character list | `(explode "string")` | String |
-| `implode` | Concatenates string list into one string | `(implode list-of-strings)` | List |
-| `split` | Split a string into a string list based on a delimiter. You can also add `:keep-empty` to keep empty elements that happens for each occurence of adjacent delimiters | `(split delimiter string)` | List |
-| `range` | Create a list of number using a start and an end value | `(range start end)` | List |
+### 3.1 Definitions
+
+#### `defvar`
+
+Defines an immutable variable.
+
+```lisp
+(defvar name value)
+```
 
 ---
 
-## III. Dictionaries (Hash Tables)
+#### `function`
 
-| Primitive | Description | Syntax | Types |
-|---------|------------|--------|------|
-| `dict` | Creates an empty dictionary | `(dict size)` | Number |
-| `dict-set` | Associates a key with a value | `(dict-set dict key value)` | Dict |
-| `dict-get` | Retrieves value for a key | `(dict-get dict key)` | Dict |
-| `dict-ref` | Retrieves value or default | `(dict-ref dict key default)` | Dict |
-| `dict-keys` | Returns all keys | `(dict-keys dict)` | Dict |
-| `dict-values` | Returns all values | `(dict-values dict)` | Dict |
-| `dict-remove` | Removes a key | `(dict-remove dict key)` | Dict |
-| `dict-contains` | Checks if key exists | `(dict-contains dict key)` | Dict |
+Defines a named function.
+
+```lisp
+(function name (arg1 arg2 ...) body)
+```
 
 ---
 
-## IV. Input / Output & File Handling
+#### `lambda`
 
-| Primitive | Description | Syntax | Types |
-|---------|------------|--------|------|
-| `write` | Prints without newline (takes an optional color `:green/:red/:yellow/:blue`) | `(write expression)` | Any |
-| `writeln` | Prints with newline (takes an optional color `:green/:red/:yellow/:blue`) | `(writeln expression)` | Any |
-| `input` | Prompts user input | `(input "prompt")` | String |
-| `read-file` | Reads entire file | `(read-file "filepath")` | String |
-| `write-file` | Writes to a file | `(write-file "path" "content" mode)` | String |
+Creates an anonymous function (closure).
+
+```lisp
+(lambda (arg1 arg2 ...) body)
+```
+
+---
+
+### 3.2 Control Flow
+
+#### `if`
+
+```lisp
+(if condition then-expr else-expr)
+```
+
+---
+
+#### `while`
+
+```lisp
+(while condition body)
+```
+
+---
+
+#### `do`
+
+Evaluates expressions sequentially and returns the last value.
+
+```lisp
+(do expr1 expr2 expr3)
+```
+
+---
+
+### 3.3 Local Bindings
+
+#### `let`
+
+Parallel bindings.
+
+```lisp
+(let ((a 1) (b 2)) body)
+```
+
+#### `let*`
+
+Sequential bindings.
+
+```lisp
+(let* ((a 1) (b (+ a 1))) body)
+```
+
+---
+
+### 3.4 Conditionals
+
+#### `case`
+
+```lisp
+(case
+  (test1) expr1
+  (test2) expr2
+  (default) default-expr)
+```
+
+---
+
+#### `match`
+
+Pattern matching on values.
+
+```lisp
+(match value
+  (pattern1) expr1
+  (pattern2) expr2
+  (default) expr)
+```
+
+Patterns may bind variables and optionally include guards using `(when condition)`.
+
+---
+
+### 3.5 Exceptions
+
+#### `try`
+
+```lisp
+(try expr (errorVar handlerExpr))
+```
+
+Catches runtime failures and binds the error message to `errorVar`.
+
+---
+
+### 3.6 Iteration
+
+#### `each`
+
+Iterates over a list.
+
+```lisp
+(each item list body)
+```
+
+---
+
+### 3.7 Threading
+
+#### `bind`
+
+Threads an accumulated value through expressions.
+
+```lisp
+(bind acc init expr1 expr2 ...)
+```
+
+---
+
+### 3.8 Quoting
+
+#### `quote`
+
+Prevents evaluation.
+
+```lisp
+(quote expr)
+```
+
+#### `quasiquote`, `unquote`, `unquote-splicing`
+
+Used for macro construction.
+
+---
+
+### 3.9 Modules
+
+#### `include`
+
+Loads and evaluates another Soluna file.
+
+```lisp
+(include "file.sol")
+```
+
+---
+
+## 4. Macros
+
+### `defmacro`
+
+Defines a macro that operates on raw syntax.
+
+```lisp
+(defmacro name (args...) body)
+```
+
+Macros are expanded before evaluation.
+
+---
+
+## 5. Built-in Functions
+
+### 5.1 Arithmetic & Logic
+
+| Function    | Description           |
+| ----------- | --------------------- |
+| `+ - * /`   | Arithmetic operations |
+| `mod`       | Modulo                |
+| `< > <= >=` | Comparisons           |
+| `=` `!=`    | Equality              |
+| `int`       | String → int          |
+| `str`       | Value → string        |
+| `type`      | Returns type name     |
+
+---
+
+### 5.2 Lists
+
+| Function  | Description     |
+| --------- | --------------- |
+| `list`    | Create list     |
+| `cons`    | Prepend element |
+| `fst`     | First element   |
+| `rst`     | Rest of list    |
+| `null`    | Empty check     |
+| `range`   | Number range    |
+| `concat`  | Concatenate     |
+| `reverse` | Reverse list    |
+| `map`     | Map function    |
+| `filter`  | Filter list     |
+| `reduce`  | Fold list       |
+
+---
+
+### 5.3 Strings
+
+| Function  | Description        |
+| --------- | ------------------ |
+| `explode` | String → char list |
+| `implode` | Char list → string |
+| `split`   | Split string       |
+
+---
+
+### 5.4 Dictionaries
+
+| Function        | Description       |
+| --------------- | ----------------- |
+| `dict`          | Create dictionary |
+| `dict-set`      | Set value         |
+| `dict-get`      | Get value         |
+| `dict-ref`      | Get with default  |
+| `dict-remove`   | Remove key        |
+| `dict-contains` | Key exists        |
+| `dict-keys`     | All keys          |
+| `dict-values`   | All values        |
+
+---
+
+### 5.5 I/O
+
+| Function     | Description                           |
+| ------------ | ------------------------------------- |
+| `write`      | Print without newline                 |
+| `writeln`    | Print with newline                    |
+| `input`      | Read input                            |
+| `eval`       | Evaluate code string                  |
+| `read-file`  | Read file                             |
+| `write-file` | Write file (`:overwrite` / `:append`) |
+
+---
+
+## 6. Examples
+
+### Function
+
+```lisp
+(function square (x) (* x x))
+(square 4)
+```
+
+### Pattern Matching
+
+```lisp
+(match x
+  ((1)) "one"
+  ((2)) "two"
+  (default "other"))
+```
+
+### Macro
+
+```lisp
+(defmacro unless (cond body)
+  `(if (not ,cond) ,body null))
+```
+
+---
+
+## 7. Grammar (Simplified)
+
+```ebnf
+Program ::= Expr*
+Expr    ::= Atom | List
+Atom    ::= Number | String | Boolean | Symbol
+List    ::= '(' Expr* ')'
+```
+
+---
+
+## 8. Notes
+
+* Variables defined with `defvar` are immutable.
+* Functions are first-class values.
+* Macros operate on syntax, not values.
+* Errors raise failures that can be caught with `try`.
 
 ---
