@@ -8,8 +8,8 @@ type soluna_expr =
     | String of string * soluna_position
     | Primitive of (soluna_expr list -> soluna_expr)
     | Dict of (string, soluna_expr) Hashtbl.t * soluna_position
-    | Lambda of string list * soluna_expr * (string, soluna_expr) Hashtbl.t
-    | Macro of string list * soluna_expr
+    | Lambda of (string * bool) list * soluna_expr * (string, soluna_expr) Hashtbl.t
+    | Macro of (string * bool) list * soluna_expr
 type env = (string, soluna_expr) Hashtbl.t
 type soluna_token = { token: string; pos: soluna_position }
 let unknown_pos = { filename = "unknown"; line = 0; }
@@ -305,7 +305,17 @@ let rec soluna_eval sexp (env: env) =
     end
 
     | List ([Symbol ("defmacro", _); Symbol (name, _); List (params, _); body], pos) -> begin
-        let param_names = List.map (function | Symbol (s, _) -> s | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'defmacro' requires Symbols as arguments" error_msg (font_blue ^ pos.filename) pos.line font_rst)) params in
+        let rec defmacro_extract_params param_list =
+            match param_list with
+            | [] -> []
+            | Symbol ("&rest", _) :: Symbol (rest, _) :: t -> begin
+                if t <> [] then failwith (Printf.sprintf "[%s] %s:%d%s -> '&rest' should be followed by one Symbol" error_msg (font_blue ^ pos.filename) pos.line font_rst);
+                [rest, true]
+            end
+            | Symbol (s, _) :: t -> (s, false) :: defmacro_extract_params t
+            | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Macro arguments should be Symbols" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+        in
+        let param_names = defmacro_extract_params params in
         let macro = Macro (param_names, body) in
         begin try
             Hashtbl.add env name macro;
@@ -338,22 +348,34 @@ let rec soluna_eval sexp (env: env) =
     end
 
     | List ([Symbol ("function", _); Symbol (name, _); List (params_list, _); body_sexp], pos) -> begin
-        let params_names = List.map (fun p ->
-            match p with
-            | Symbol (s, _) -> s
-            | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Function parameters must be symbols" error_msg (font_blue ^ pos.filename) pos.line font_rst)
-        ) params_list in
+        let rec lambda_extract_params param_list =
+            match param_list with
+            | [] -> []
+            | Symbol ("&rest", _) :: Symbol (rest, _) :: t -> begin
+                if t <> [] then failwith (Printf.sprintf "[%s] %s:%d%s -> '&rest' should be followed by one Symbol" error_msg (font_blue ^ pos.filename) pos.line font_rst);
+                [rest, true]
+            end
+            | Symbol (s, _) :: t -> (s, false) :: lambda_extract_params t
+            | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Macro arguments should be Symbols" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+        in
+        let params_names = lambda_extract_params params_list in
         let named_lambda = Lambda (params_names, body_sexp, env) in
         Hashtbl.replace env name named_lambda;
         named_lambda
     end
 
     | List ([Symbol ("lambda", _); List (params_list, _); body_sexp], pos) -> begin
-        let params_names = List.map (fun p ->
-            match p with
-            | Symbol (s, _) -> s
-            | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Lambda function parameters must be symbols" error_msg (font_blue ^ pos.filename) pos.line font_rst)
-        ) params_list in
+        let rec lambda_extract_params param_list =
+            match param_list with
+            | [] -> []
+            | Symbol ("&rest", _) :: Symbol (rest, _) :: t -> begin
+                if t <> [] then failwith (Printf.sprintf "[%s] %s:%d%s -> '&rest' should be followed by one Symbol" error_msg (font_blue ^ pos.filename) pos.line font_rst);
+                [rest, true]
+            end
+            | Symbol (s, _) :: t -> (s, false) :: lambda_extract_params t
+            | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Macro arguments should be Symbols" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+        in
+        let params_names = lambda_extract_params params_list in
         Lambda (params_names, body_sexp, env)
     end
 
@@ -522,22 +544,37 @@ and soluna_eval_list_form sexp env =
                 fn args
             end
             | Lambda (params, body, lambda_env) -> begin
-                let args = List.map (fun arg -> soluna_eval arg env) t in
-                if List.length params <> List.length args then
-                    failwith (Printf.sprintf "[%s] %s:%d%s -> Wrong number of arguments passed to function" error_msg (font_blue ^ pos.filename) pos.line font_rst)
-                else
-                    let local_env = Hashtbl.copy lambda_env in
-                    List.iter2 (fun name value -> Hashtbl.replace local_env name value) params args;
-                    soluna_eval body local_env
+                let rec bind_lambda ps ts =
+                    match ps, ts with
+                    | [], [] -> ()
+                    | (name, true) :: _, rest -> Hashtbl.add lambda_env name (List (rest, pos))
+                    | (name, false) :: ptail, a :: atail -> begin
+                        Hashtbl.add lambda_env name a;
+                        bind_lambda ptail atail;
+                    end
+                    | [], _ :: _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Too much arguments for the Macro" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+                    | _ :: _, [] -> failwith (Printf.sprintf "[%s] %s:%d%s -> Not enough arguments for the Macro" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+                in
+                bind_lambda params t;
+                let expanded = soluna_eval body lambda_env in
+                soluna_eval expanded env
             end
             | Macro (params, body) -> begin
                 let macro_env = Hashtbl.copy env in
-                if List.length params <> List.length t then
-                    failwith (Printf.sprintf "[%s] %s:%d%s -> Wrong number of arguments passed to function" error_msg (font_blue ^ pos.filename) pos.line font_rst)
-                else
-                    List.iter2 (fun p a -> Hashtbl.add macro_env p a) params t;
-                    let expanded_code = soluna_eval body macro_env in
-                    soluna_eval expanded_code env
+                let rec bind_macro ps ts =
+                    match ps, ts with
+                    | [], [] -> ()
+                    | (name, true) :: _, rest -> Hashtbl.add macro_env name (List (rest, pos))
+                    | (name, false) :: ptail, a :: atail -> begin
+                        Hashtbl.add macro_env name a;
+                        bind_macro ptail atail;
+                    end
+                    | [], _ :: _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Too much arguments for the Macro" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+                    | _ :: _, [] -> failwith (Printf.sprintf "[%s] %s:%d%s -> Not enough arguments for the Macro" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+                in
+                bind_macro params t;
+                let expanded = soluna_eval body macro_env in
+                soluna_eval expanded env
             end
             | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Expected a Symbol. You might need to use 'do'" error_msg (font_blue ^ pos.filename) pos.line font_rst)
     end
@@ -708,7 +745,8 @@ let soluna_map_lambda_to_sexp lambda sexp =
             failwith (Printf.sprintf "[%s] -> Function passed to 'map' must accept exactly one argument" error_msg)
         else
             let local_env = Hashtbl.copy lambda_env in
-            Hashtbl.replace local_env (List.hd params) sexp;
+            let (params, _) = List.hd params in
+            Hashtbl.replace local_env params sexp;
             soluna_eval body local_env
     end
     | Primitive fn -> fn [sexp]
@@ -770,7 +808,10 @@ let soluna_reduce_primitive args =
                 if List.length params <> 2 then failwith (Printf.sprintf "[%s] %s:%d%s -> 'reduce' function must take exactly two arguments" error_msg (font_blue ^ pos.filename) pos.line font_rst)
                 else begin
                     let local_env = Hashtbl.copy lambda_env in
-                    List.iter2 (Hashtbl.replace local_env) params [acc; h];
+                    let (p1, _) = List.nth params 0 in
+                    let (p2, _) = List.nth params 1 in
+                    Hashtbl.replace local_env p1 acc;
+                    Hashtbl.replace local_env p2 h;
                     soluna_eval body local_env
                 end
             end
