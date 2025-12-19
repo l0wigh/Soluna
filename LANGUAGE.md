@@ -126,9 +126,9 @@ Sequential bindings.
 
 ```lisp
 (case
-  (test1) expr1
-  (test2) expr2
-  (default) default-expr)
+  ((test1) expr1)
+  ((test2) expr2)
+  (default default-expr))
 ```
 
 ---
@@ -139,9 +139,9 @@ Pattern matching on values.
 
 ```lisp
 (match value
-  (pattern1) expr1
-  (pattern2) expr2
-  (default) expr)
+  ((pattern1) expr1)
+  ((pattern2) expr2)
+  (default expr))
 ```
 
 Patterns may bind variables and optionally include guards using `(when condition)`.
@@ -179,7 +179,7 @@ Iterates over a list.
 Threads an accumulated value through expressions.
 
 ```lisp
-(bind acc init expr1 expr2 ...)
+(bind acc init_expr (expr1 acc) (expr2 acc x) ...)
 ```
 
 ---
@@ -196,7 +196,7 @@ Prevents evaluation.
 
 #### `quasiquote`, `unquote`, `unquote-splicing`
 
-Used for macro construction.
+Used for macro construction. Talked later in this document.
 
 ---
 
@@ -207,7 +207,7 @@ Used for macro construction.
 Loads and evaluates another Soluna file.
 
 ```lisp
-(include "file.sol")
+(include "file.luna")
 ```
 
 ---
@@ -273,20 +273,20 @@ Returns the list representing `(+ 1 2)` without evaluating it.
 The comma evaluates an expression **inside a quasiquote** and inserts its result.
 
 ```lisp
-(defmacro inc (x)
-  `(+ ,x 1))
+(defmacro infix (a op b)
+  `(,a ,op ,b))
 ```
 
 Usage:
 
 ```lisp
-(inc a)
+(inc 10 + x)
 ```
 
 Expands to:
 
 ```lisp
-(+ a 1)
+(+ 10 x)
 ```
 
 ---
