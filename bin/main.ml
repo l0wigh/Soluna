@@ -582,6 +582,13 @@ let soluna_comparaison_primtive op args =
         | _ -> Boolean (false, pos)
     end
     | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Comparison requires two arguments of the same type (boolean, string or int)" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+
+let soluna_not_primitive args =
+    let pos = soluna_token_pos args in
+    match args with
+    | [Symbol ("nil", _)] | [Symbol ("null", _)] -> Boolean (true, unknown_pos)
+    | [_] -> Boolean (false, unknown_pos)
+    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'not' expects one argument only" error_msg (font_blue ^ pos.filename) pos.line font_rst)
     
 let soluna_modulo_primitive args =
     let pos = soluna_token_pos args in
@@ -1078,6 +1085,7 @@ let soluna_init_env () : env =
     Hashtbl.replace env "!=" (Primitive (soluna_comparaison_primtive (!=)));
     Hashtbl.replace env ">=" (Primitive (soluna_comparaison_primtive (>=)));
     Hashtbl.replace env "<=" (Primitive (soluna_comparaison_primtive (<=)));
+    Hashtbl.replace env "not" (Primitive soluna_not_primitive);
     Hashtbl.replace env "mod" (Primitive soluna_modulo_primitive); 
     Hashtbl.replace env "write" (Primitive (soluna_write_primitive env false));
     Hashtbl.replace env "writeln" (Primitive (soluna_write_primitive env true));
