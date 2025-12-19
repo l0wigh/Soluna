@@ -1,4 +1,4 @@
-let soluna_version = "0.6.0"
+let soluna_version = "0.6.2"
 type soluna_position = { filename: string; line: int; }
 type soluna_expr =
     | Number of int * soluna_position

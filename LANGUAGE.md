@@ -1,6 +1,6 @@
 # Soluna Language Reference
 
-> **Version:** 0.6.0
+> **Version:** 0.6.2
 > **Implementation reference:** `bin/main.ml`
 
 ---
@@ -139,9 +139,9 @@ Pattern matching on values.
 
 ```lisp
 (match value
-  ((pattern1) expr1)
-  ((pattern2) expr2)
-  (default expr))
+  (pattern1) expr1
+  (pattern2) expr2
+  (default) expr)
 ```
 
 Patterns may bind variables and optionally include guards using `(when condition)`.
@@ -214,15 +214,141 @@ Loads and evaluates another Soluna file.
 
 ## 4. Macros
 
-### `defmacro`
+Macros allow you to transform Soluna code *before* it is evaluated. Unlike functions, macros receive **raw, unevaluated syntax** and return new code that will later be evaluated.
 
-Defines a macro that operates on raw syntax.
+Macros are essential for extending the language and creating new control structures.
+
+---
+
+### 4.1 Defining a Macro
+
+Macros are defined using `defmacro`:
 
 ```lisp
 (defmacro name (args...) body)
 ```
 
-Macros are expanded before evaluation.
+* Arguments receive **syntax trees**, not values.
+* The macro body must return valid Soluna code.
+
+Example:
+
+```lisp
+(defmacro unless (cond body)
+  `(if (not ,cond) ,body null))
+```
+
+This expands:
+
+```lisp
+(unless x expr)
+```
+
+into:
+
+```lisp
+(if (not x) expr null)
+```
+
+---
+
+### 4.2 Quoting and Code Templates
+
+Macros usually rely on *quasiquotation* to build code templates.
+
+#### Backquote `` ` `` (Quasiquote)
+
+The backquote creates a **code template**. Everything inside is quoted *except* parts explicitly unquoted.
+
+```lisp
+`(+ 1 2)
+```
+
+Returns the list representing `(+ 1 2)` without evaluating it.
+
+---
+
+#### Comma `,` (Unquote)
+
+The comma evaluates an expression **inside a quasiquote** and inserts its result.
+
+```lisp
+(defmacro inc (x)
+  `(+ ,x 1))
+```
+
+Usage:
+
+```lisp
+(inc a)
+```
+
+Expands to:
+
+```lisp
+(+ a 1)
+```
+
+---
+
+#### Comma-at `,@` (Unquote Splicing)
+
+`,@` evaluates to a list and **splices its elements** into the surrounding list.
+
+```lisp
+(defmacro when (cond &rest body)
+  `(if ,cond (do ,@body) null))
+```
+
+Usage:
+
+```lisp
+(when x
+  (write "yes")
+  (write "!"))
+```
+
+Expands to:
+
+```lisp
+(if x
+    (do (write "yes") (write "!"))
+    null)
+```
+
+---
+
+### 4.3 `&rest` Parameters
+
+`&rest` collects **all remaining macro arguments** into a list.
+
+```lisp
+(defmacro list-of (&rest xs)
+  `(list ,@xs))
+```
+
+Usage:
+
+```lisp
+(list-of 1 2 3)
+```
+
+Expands to:
+
+```lisp
+(list 1 2 3)
+```
+
+---
+
+### 4.4 Macro Expansion Model
+
+1. Macro arguments are **not evaluated**
+2. The macro body executes at *expand time*
+3. The result must be valid Soluna code
+4. The expanded code is then evaluated normally
+
+Macros can generate arbitrary code, including other macros.
 
 ---
 
@@ -234,19 +360,20 @@ This section lists all built-in functions available by default, with short usage
 
 ### 5.1 Arithmetic & Logic
 
-| Function    | Description    | Example               |
-| ----------- | -------------- | --------------------- |
-| `+`         | Addition       | `(+ 1 2 3)` → `6`     |
-| `-`         | Subtraction    | `(- 10 3)` → `7`      |
-| `*`         | Multiplication | `(* 2 4)` → `8`       |
-| `/`         | Division       | `(/ 8 2)` → `4`       |
-| `mod`       | Modulo         | `(mod 10 3)` → `1`    |
-| `< > <= >=` | Comparisons    | `(< 1 2)` → `true`    |
-| `=`         | Equality       | `(= 3 3)` → `true`    |
-| `!=`        | Inequality     | `(!= 3 4)` → `true`   |
-| `int`       | String → int   | `(int "42")` → `42`   |
-| `str`       | Value → string | `(str 42)` → `"42"`   |
-| `type`      | Type name      | `(type 42)` → `"int"` |
+| Function    | Description           | Example                |
+| ----------- | --------------------- | ---------------------- |
+| `+`         | Addition              | `(+ 1 2 3)` → `6`      |
+| `-`         | Subtraction           | `(- 10 3)` → `7`       |
+| `*`         | Multiplication        | `(* 2 4)` → `8`        |
+| `/`         | Division              | `(/ 8 2)` → `4`        |
+| `mod`       | Modulo                | `(mod 10 3)` → `1`     |
+| `< > <= >=` | Comparisons           | `(< 1 2)` → `true`     |
+| `=`         | Equality              | `(= 3 3)` → `true`     |
+| `!=`        | Inequality            | `(!= 3 4)` → `true`    |
+| `int`       | String → int          | `(int "42")` → `42`    |
+| `str`       | Value → string        | `(str 42)` → `"42"`    |
+| `str`       | Invert the evaluation | `(not true)` → `false` |
+| `type`      | Type name             | `(type 42)` → `"int"`  |
 
 ---
 
@@ -319,8 +446,8 @@ This section lists all built-in functions available by default, with short usage
 
 ```lisp
 (match x
-  ((1) "one")
-  ((2) "two")
+  ((1)) "one"
+  ((2)) "two"
   (default "other"))
 ```
 
@@ -352,6 +479,3 @@ List    ::= '(' Expr* ')'
 * Errors raise failures that can be caught with `try`.
 
 ---
-
-**End of Soluna Language Reference**
-

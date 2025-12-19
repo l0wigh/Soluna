@@ -1,4 +1,4 @@
-# Soluna 0.6.0
+# Soluna 0.6.2
 
 <p align="center" width="100%">
     <img src="https://raw.githubusercontent.com/l0wigh/Soluna/refs/heads/master/logo_alchemy.gif">
@@ -18,14 +18,13 @@ The documentation can be found [here](https://github.com/l0wigh/Soluna/blob/mast
 - lambda and function: functions is basically syntactic sugar for lambdas
 - do: let you do multiple operations and yet return only the last expression ! (trust me it's useful)
 - list: let you create a list
-- fst: gives you the first item of a list
-- rst: gives you the list without the first element
 - if: simple if else block
 - map: apply a function to a list to get a new list
 - filter: apply a function that returns a boolean and create a function only with elements that output as true.
+- macros: let you create code template to extend language capacities
 - ...: other stuff can be found in the [Language Reference](https://github.com/l0wigh/Soluna/blob/master/LANGUAGE.md)
 
-You need to build the missing tools by yourself
+You need to build the missing tools by yourself, that's the fun part.
 
 ## Oracle REPL
 
