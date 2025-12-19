@@ -1,4 +1,4 @@
-let soluna_version = "0.6.3"
+let soluna_version = "0.6.4"
 type soluna_position = { filename: string; line: int; }
 type soluna_expr =
     | Number of int * soluna_position
@@ -25,7 +25,7 @@ let user_blue = "\x1b[34m"
 
 open Filename
 
-let soluna_repl = "(function closed_expression (lst) (do(defvar opening (length (filter (lambda (x) (if (= x \"(\") true false)) lst)))(defvar closing (length (filter (lambda (x) (if (= x \")\") true false)) lst)))(if (= opening closing) true false)))(function oracle () (do(defvar prompt \"oracle λ \")(defvar kill-switch true)(defvar show-return true)(defvar unclosed (list))(while kill-switch(do(defvar user-input (input prompt))(case((= user-input \"exit\") (defvar kill-switch false))((= user-input \"hide\") (do (defvar show-return false) (writeln \"Sexp values are now hidden\")))((= user-input \"show\") (do (defvar show-return true) (writeln \"Sexp values are now written\")))(default (try (do(defvar unclosed (cons \" \" unclosed))(defvar sexp (implode (reverse (cons user-input unclosed))))(case ((closed_expression (explode sexp)) (do(defvar sexp (eval sexp))(defvar prompt \"oracle λ \")(if show-return (do(write \"- : \")(defvar sexp_type (type sexp))(case((= sexp_type \"Lambda\") (defvar sexp_type \"\"))(default (defvar sexp_type (implode (list sexp_type \" \")))))(write sexp_type :green)(writeln sexp :green)(defvar unclosed (list)))())))(default (do(defvar prompt \"... \")(defvar unclosed (cons user-input unclosed))))))(e (writeln e)))))))))(oracle)"
+let soluna_repl = "(function closed_expression (lst) (do(defvar opening (length (filter (lambda (x) (if (= x \"(\") true false)) lst)))(defvar closing (length (filter (lambda (x) (if (= x \")\") true false)) lst)))(if (<= opening closing) true false)))(function oracle () (do(defvar prompt \"oracle λ \")(defvar kill-switch true)(defvar show-return true)(defvar unclosed (list))(while kill-switch(do(defvar user-input (input prompt))(case((= user-input \"exit\") (defvar kill-switch false))((= user-input \"hide\") (do (defvar show-return false) (writeln \"Sexp values are now hidden\")))((= user-input \"show\") (do (defvar show-return true) (writeln \"Sexp values are now written\")))(default (try (do(defvar unclosed (cons \" \" unclosed))(defvar sexp (implode (reverse (cons user-input unclosed))))(case ((closed_expression (explode sexp)) (do(defvar sexp (eval sexp))(defvar prompt \"oracle λ \")(if show-return (do(write \"- : \")(defvar sexp_type (type sexp))(case((= sexp_type \"Lambda\") (defvar sexp_type \"\"))(default (defvar sexp_type (implode (list sexp_type \" \")))))(write sexp_type :green)(writeln sexp :green)(defvar unclosed (list)))())))(default (do(defvar prompt \"... \")(defvar unclosed (cons user-input unclosed))))))(e (writeln e)))))))))(oracle)"
 
 let soluna_parse_atom ptoken =
     let token = ptoken.token in
@@ -58,6 +58,10 @@ let rec soluna_read_tokens token_list =
     | h :: t -> begin
         let pos = h.pos in
         match h.token with
+        | "'" -> begin
+            let expr, rem_token = soluna_read_tokens t in
+            (List ([Symbol ("quote", pos); expr], pos), rem_token)
+        end
         | "`" -> begin
             let expr, rem_token = soluna_read_tokens t in
             (List ([Symbol ("quasiquote", pos); expr], pos), rem_token)
@@ -96,6 +100,7 @@ let rec soluna_quasiquote_prep s =
     s
     |> (fun s -> quasiquote_prep_inner s "(" " ( ")
     |> (fun s -> quasiquote_prep_inner s ")" " ) ")
+    |> (fun s -> quasiquote_prep_inner s "'" " ' ")
     |> (fun s -> quasiquote_prep_inner s "`" " ` ")
     |> (fun s -> quasiquote_prep_inner s ",@" " ,@ ")
     |> (fun s -> quasiquote_prep_inner s "," " , ")
@@ -345,13 +350,12 @@ let rec soluna_eval sexp (env: env) =
         end
     end
 
-    | List ([Symbol ("if", _); cond_exp; then_exp; else_exp], pos) -> begin
+    | List ([Symbol ("if", _); cond_exp; then_exp; else_exp], _) -> begin
         let eval_cond = soluna_eval cond_exp env in
         (
             match eval_cond with
-            | Boolean (true, _) -> soluna_eval then_exp env
             | Boolean (false, _) -> soluna_eval else_exp env
-            | _ -> failwith (Printf.sprintf "Solune [%s] %s:%d%s -> if condition must evaluate to a Boolean" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+            | _  -> soluna_eval then_exp env
         )
     end
 
@@ -432,9 +436,8 @@ and soluna_eval_case clauses pos env =
     | List ([test_expr; res_expr], _) :: rst_clauses -> begin
         let eval = soluna_eval test_expr env in
         match eval with
-        | Boolean (true, _) -> soluna_eval res_expr env
         | Boolean (false, _) -> soluna_eval_case rst_clauses pos env
-        | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Conditionnal expressions should return a Boolean" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+        | _ -> soluna_eval res_expr env
     end
         | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Invalid 'case' use. Need at least a default case" error_msg (font_blue ^ pos.filename) pos.line font_rst)
 
@@ -633,6 +636,7 @@ let soluna_not_primitive args =
     let pos = soluna_token_pos args in
     match args with
     | [Symbol ("nil", _)] | [Symbol ("null", _)] -> Boolean (true, unknown_pos)
+    | [Boolean (b, pos)] -> Boolean (not b, pos)
     | [_] -> Boolean (false, unknown_pos)
     | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'not' expects one argument only" error_msg (font_blue ^ pos.filename) pos.line font_rst)
     

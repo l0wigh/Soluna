@@ -3,7 +3,7 @@
 (function closed_expression (lst) (do
 	(defvar opening (length (filter (lambda (x) (if (= x "(") true false)) lst)))
 	(defvar closing (length (filter (lambda (x) (if (= x ")") true false)) lst)))
-	(if (= opening closing) true false)
+	(if (<= opening closing) true false)
 ))
 
 (function oracle () (do

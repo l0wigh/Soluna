@@ -1,0 +1,12 @@
+(defmacro for (var from start to end &rest body)
+  `(let ()
+     (function loop (current-val)
+       (if (<= current-val ,end)
+           (let ((,var current-val))
+             (do
+               ,@body
+               (loop (+ current-val 1))))
+           ()))
+     (loop ,start)))
+
+(for i from 1 to 5 (writeln i))

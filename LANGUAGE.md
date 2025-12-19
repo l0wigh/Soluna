@@ -1,6 +1,6 @@
 # Soluna Language Reference
 
-> **Version:** 0.6.3
+> **Version:** 0.6.4
 > **Implementation reference:** `bin/main.ml`
 
 ---
@@ -192,6 +192,8 @@ Prevents evaluation.
 
 ```lisp
 (quote expr)
+; or
+'(expr)
 ```
 
 #### `quasiquote`, `unquote`, `unquote-splicing`
