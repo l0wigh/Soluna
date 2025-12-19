@@ -54,7 +54,7 @@ let soluna_color_of_symbol arg =
 
 let rec soluna_read_tokens token_list =
     match token_list with
-    | [] -> failwith (Printf.sprintf "[%s] %s:%d%s -> Unexpected EOF" error_msg (font_blue ^ (List.hd token_list).pos.filename) (List.hd token_list).pos.line font_rst)
+    | [] -> failwith (Printf.sprintf "[%s] -> Unexpected EOF" error_msg)
     | h :: t -> begin
         let pos = h.pos in
         match h.token with
@@ -71,7 +71,7 @@ let rec soluna_read_tokens token_list =
             (List ([Symbol ("unquote", pos); expr], pos), rem_token)
         end
         | "(" -> begin
-            let (elements, rem_token) = soluna_read_list [] t in
+            let (elements, rem_token) = soluna_read_list [] t pos in
             (List (elements, pos), rem_token)
         end
         | ")" -> failwith (Printf.sprintf "[%s] %s:%d%s -> Unexpected ')'" error_msg (font_blue ^ pos.filename) pos.line font_rst)
@@ -80,15 +80,15 @@ let rec soluna_read_tokens token_list =
             (atom, t)
         end
     end
-and soluna_read_list token_acc token_list =
+and soluna_read_list token_acc token_list pos =
     match token_list with
-    | [] -> failwith (Printf.sprintf "[%s] -> Expression was not closed !" error_msg)
+    | [] -> failwith (Printf.sprintf "[%s] %s:%d%s -> Expression was not closed" error_msg (font_blue ^ pos.filename) pos.line font_rst)
     | h :: t -> begin
         match h.token with
         | ")" -> (List.rev token_acc, t)
         | _ -> begin
             let (sexp, rem_tokens) = soluna_read_tokens (h :: t) in
-            soluna_read_list (sexp :: token_acc) rem_tokens
+            soluna_read_list (sexp :: token_acc) rem_tokens pos
         end
     end
 
@@ -364,7 +364,7 @@ let rec soluna_eval sexp (env: env) =
                 [rest, true]
             end
             | Symbol (s, _) :: t -> (s, false) :: lambda_extract_params t
-            | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Macro arguments should be Symbols" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+            | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Arguments should be Symbols" error_msg (font_blue ^ pos.filename) pos.line font_rst)
         in
         let params_names = lambda_extract_params params_list in
         let named_lambda = Lambda (params_names, body_sexp, env) in
@@ -381,7 +381,7 @@ let rec soluna_eval sexp (env: env) =
                 [rest, true]
             end
             | Symbol (s, _) :: t -> (s, false) :: lambda_extract_params t
-            | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Macro arguments should be Symbols" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+            | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Arguments should be Symbols" error_msg (font_blue ^ pos.filename) pos.line font_rst)
         in
         let params_names = lambda_extract_params params_list in
         Lambda (params_names, body_sexp, env)
@@ -552,20 +552,21 @@ and soluna_eval_list_form sexp env =
                 fn args
             end
             | Lambda (params, body, lambda_env) -> begin
+                let local_env = Hashtbl.copy lambda_env in
+                let args_values = List.map (fun arg -> soluna_eval arg env) t in
                 let rec bind_lambda ps ts =
                     match ps, ts with
                     | [], [] -> ()
-                    | (name, true) :: _, rest -> Hashtbl.add lambda_env name (List (rest, pos))
+                    | (name, true) :: _, rest -> Hashtbl.add local_env name (List (rest, pos))
                     | (name, false) :: ptail, a :: atail -> begin
-                        Hashtbl.add lambda_env name a;
+                        Hashtbl.add local_env name a;
                         bind_lambda ptail atail;
                     end
                     | [], _ :: _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Too much arguments for the Macro" error_msg (font_blue ^ pos.filename) pos.line font_rst)
                     | _ :: _, [] -> failwith (Printf.sprintf "[%s] %s:%d%s -> Not enough arguments for the Macro" error_msg (font_blue ^ pos.filename) pos.line font_rst)
                 in
-                bind_lambda params t;
-                let expanded = soluna_eval body lambda_env in
-                soluna_eval expanded env
+                bind_lambda params args_values;
+                soluna_eval body local_env
             end
             | Macro (params, body) -> begin
                 let macro_env = Hashtbl.copy env in
