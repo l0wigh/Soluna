@@ -33,6 +33,7 @@ let soluna_parse_atom ptoken =
     match token with
     | "true" -> Boolean (true, pos)
     | "false" -> Boolean (false, pos)
+    | "nil" -> List ([], pos)
     | _ -> begin
         if token.[0] = '\"' then
             let string_split = String.split_on_char '"' token in
@@ -210,6 +211,7 @@ let rec soluna_string_of_sexp sexp =
   | Number (n, _) -> Printf.sprintf "%d" n
   | Symbol (s, _) -> s
   | Boolean (b, _) -> if b then "true" else "false"
+  | List ([], _) -> "Nil"
   | List (expr_list, _) -> begin
       let inner_content = 
           List.map soluna_string_of_sexp expr_list
@@ -217,10 +219,10 @@ let rec soluna_string_of_sexp sexp =
       in
       Printf.sprintf "(%s)" inner_content
   end
-  | Primitive _ -> Printf.sprintf "Primitive"
+  | Primitive _ -> "Primitive"
   | String (h, _) -> Printf.sprintf "%s" h
-  | Lambda _ -> Printf.sprintf "Lambda"
-  | Macro _ -> Printf.sprintf "Macro"
+  | Lambda _ -> "Lambda"
+  | Macro _ -> "Macro"
 
 let rec soluna_unify pattern value env =
     match pattern, value with
@@ -297,7 +299,7 @@ let rec soluna_eval sexp (env: env) =
         | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Wrong 'let' syntax. You should pass local variables this way ((x 1) (y 2))" error_msg (font_blue ^ pos.filename) pos.line font_rst)
         ) bindings;
         match body_sexp with
-        | [] -> Symbol ("nil", pos)
+        | [] -> List ([], pos)
         | _ -> soluna_eval (List (Symbol ("do", pos) :: body_sexp, pos)) local_env
     end
 
@@ -313,7 +315,7 @@ let rec soluna_eval sexp (env: env) =
         | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Wrong 'let*' syntax. You should pass local variables this way ((x 1) (y 2))" error_msg (font_blue ^ pos.filename) pos.line font_rst)
         ) bindings;
         match body_sexp with
-        | [] -> Symbol ("nil", pos)
+        | [] -> List ([], pos)
         | _ -> soluna_eval (List (Symbol ("do", pos) :: body_sexp, pos)) !curr_env
     end
 
@@ -354,7 +356,7 @@ let rec soluna_eval sexp (env: env) =
         let eval_cond = soluna_eval cond_exp env in
         (
             match eval_cond with
-            | Boolean (false, _) -> soluna_eval else_exp env
+            | List ([], _) | Boolean (false, _) -> soluna_eval else_exp env
             | _  -> soluna_eval then_exp env
         )
     end
@@ -425,7 +427,7 @@ and soluna_include_file filename pos env =
         let tokenized = soluna_tokenizer "" [] parsed_sexp 1 path in
         let prog = soluna_read_program tokenized [] in
         List.iter (fun sexp -> let _ = soluna_eval sexp env in ()) prog;
-        Symbol ("nil", pos)
+        List ([], pos)
     with Sys_error msg -> failwith (Printf.sprintf "[%s] %s:%d%s -> Cannot include file '%s': %s" error_msg (font_blue ^ pos.filename) pos.line path msg font_rst)
 
 and soluna_eval_case clauses pos env =
@@ -493,7 +495,7 @@ and soluna_eval_each var_name lst_sexp body_sexp env pos =
     | List (elements, _) -> begin
         let rec loop_elements curr_list =
             match curr_list with
-            | [] -> Symbol ("nil", pos)
+            | [] -> List ([], pos)
             | h :: t -> begin
                 Hashtbl.replace env var_name h;
                 let _ = soluna_eval body_sexp env in
@@ -514,7 +516,7 @@ and soluna_eval_while cond_sexp body_sexp env pos =
         if res then begin
             let _ = soluna_eval body_sexp env in
             loop ()
-        end else Symbol ("nil", pos)
+        end else List ([], pos)
     in
     loop ()
 
@@ -594,7 +596,7 @@ and soluna_eval_list_form sexp env =
 
 and soluna_eval_do expr_list env =
     match expr_list with
-    | [] -> Symbol ("nil", unknown_pos)
+    | [] -> List ([], unknown_pos)
     | [last_expr] -> soluna_eval last_expr env
     | h :: t -> begin
         let _ = soluna_eval h env in
@@ -630,12 +632,17 @@ let soluna_comparaison_primtive op args =
         | false, false -> Boolean (true, pos)
         | _ -> Boolean (false, pos)
     end
-    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Comparison requires two arguments of the same type (boolean, string or int)" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+    | [List (a, _); List (b, _)] -> begin
+        match a, b with
+        | a, b when a = b -> Boolean (true, pos)
+        | _ -> Boolean (false, pos)
+    end
+    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Comparison requires two arguments of the same type" error_msg (font_blue ^ pos.filename) pos.line font_rst)
 
 let soluna_not_primitive args =
     let pos = soluna_token_pos args in
     match args with
-    | [Symbol ("nil", _)] | [Symbol ("null", _)] -> Boolean (true, unknown_pos)
+    | [List ([], _)] | [Symbol ("null", _)] -> Boolean (true, unknown_pos)
     | [Boolean (b, pos)] -> Boolean (not b, pos)
     | [_] -> Boolean (false, unknown_pos)
     | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'not' expects one argument only" error_msg (font_blue ^ pos.filename) pos.line font_rst)
@@ -989,7 +996,7 @@ let soluna_eval_primitive env args =
             let program = soluna_read_program parsed_sexp [] in
             let rec eval_program program =
                 match program with
-                | [] -> Symbol ("nil", pos)
+                | [] -> List ([], pos)
                 | [last_sexp] -> soluna_eval last_sexp env
                 | h :: t -> begin
                     let _ = soluna_eval h env in
@@ -1011,6 +1018,7 @@ let soluna_type_primitive args =
         | String (_, _) -> String ("String", pos)
         | Lambda (_, _, _) -> String ("Lambda", pos)
         | Macro (_, _) -> String ("Macro", pos)
+        | List ([], _) -> String ("Nil", pos)
         | List (_, _) -> String ("List", pos)
         | Boolean (_, _) -> String ("Boolean", pos)
         | Primitive _ -> String ("Primitive", pos)
@@ -1109,7 +1117,7 @@ let soluna_write_file_primitive env args =
             try
                 output_string oc content;
                 close_out oc;
-                Symbol ("nil", pos)
+                List ([], pos)
             with
             | e -> close_out_noerr oc; raise e
         end
@@ -1173,7 +1181,7 @@ let soluna_dict_remove_primitive args =
     match args with
     | [Dict (h, p); String (key, _)] -> begin
         Hashtbl.remove h key;
-        Symbol ("nil", p)
+        List ([], p)
     end
     | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'dict-remove' requires a dictionnary and a key as arguments" error_msg (font_blue ^ pos.filename) pos.line font_rst)
 

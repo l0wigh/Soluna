@@ -1,0 +1,23 @@
+(function my-when (condition true-fn)
+	(if condition (true-fn) ()))
+
+(my-when true (lambda () (do (writeln "Hello") (writeln "World"))))
+
+(defmacro my-and (&rest exprs)
+	(if (= (length exprs) 1)
+		(fst exprs)
+		`(if ,(fst exprs)
+			,(fst exprs)
+			(my-and ,@(rst exprs))
+		)
+	)
+)
+
+(writeln (my-and nil))
+(writeln (my-and 1 2))
+(writeln (my-and nil 2))
+
+(do
+	(writeln (= nil (list)))
+	(writeln (if nil "Erreur" "Ok"))
+)
