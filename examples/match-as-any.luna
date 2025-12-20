@@ -1,0 +1,9 @@
+(match (list 1 2 3)
+  (((head :: rest) as lst) 
+   (do (writeln lst)
+       (writeln rest)
+	   (writeln head))))
+
+(match "NORTH"
+  ((any "NORTH" "UP" "N") (writeln "Direction: Nord")))
+

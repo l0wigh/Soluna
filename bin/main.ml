@@ -228,6 +228,23 @@ let rec soluna_unify pattern value env =
     match pattern, value with
     | Symbol ("_", _), _ -> true
     | Symbol ("default", _), _ -> true
+    | List (Symbol ("any", _) :: patterns, _), target -> begin
+        List.exists (fun p ->
+          (* On utilise un environnement temporaire pour tester le pattern *)
+          let temp_env = Hashtbl.copy env in
+          if soluna_unify p target temp_env then begin
+            (* Si ça match, on déverse les liaisons dans le vrai env *)
+            Hashtbl.iter (Hashtbl.replace env) temp_env;
+            true
+          end else false
+        ) patterns
+    end
+    | List ([p; Symbol ("as", _); Symbol (name, _)], _), target -> begin
+        if soluna_unify p target env then begin
+            Hashtbl.replace env name target;
+            true
+        end else false
+    end
     | Symbol (name, _), _ -> begin
         Hashtbl.replace env name value;
         true
