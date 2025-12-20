@@ -1,6 +1,6 @@
 # Soluna Language Reference
 
-> **Version:** 0.6.4
+> **Version:** 0.6.7
 > **Implementation reference:** `bin/main.ml`
 
 ---
@@ -13,6 +13,7 @@
 * **Booleans**: `true`, `false`
 * **Strings**: `"hello"`, supports escape sequences (`\n`, `\t`, etc.)
 * **Symbols**: identifiers for variables, functions, and macros
+* **Nil**: means nothing, empty, false...
 
 ### 1.2 Lists
 
@@ -381,19 +382,21 @@ This section lists all built-in functions available by default, with short usage
 
 ### 5.2 Lists
 
-| Function  | Description     | Example                           |
-| --------- | --------------- | --------------------------------- |
-| `list`    | Create list     | `(list 1 2 3)`                    |
-| `cons`    | Prepend element | `(cons 0 (list 1 2))` → `(0 1 2)` |
-| `fst`     | First element   | `(fst (list 1 2 3))` → `1`        |
-| `rst`     | Rest of list    | `(rst (list 1 2 3))` → `(2 3)`    |
-| `null`    | Empty check     | `(null (list))` → `true`          |
-| `range`   | Number range    | `(range 1 4)` → `(1 2 3)`         |
-| `concat`  | Concatenate     | `(concat (list 1) (list 2 3))`    |
-| `reverse` | Reverse list    | `(reverse (list 1 2))` → `(2 1)`  |
-| `map`     | Map function    | `(map square (list 1 2 3))`       |
-| `filter`  | Filter list     | `(filter even? (list 1 2 3 4))`   |
-| `reduce`  | Fold list       | `(reduce + 0 (list 1 2 3))` → `6` |
+| Function  | Description                         | Example                                         |
+| --------- | ----------------------------------- | ----------------------------------------------- |
+| `list`    | Create list                         | `(list 1 2 3)`                                  |
+| `cons`    | Prepend element                     | `(cons 0 (list 1 2))` → `(0 1 2)`               |
+| `fst`     | First element                       | `(fst (list 1 2 3))` → `1`                      |
+| `rst`     | Rest of list                        | `(rst (list 1 2 3))` → `(2 3)`                  |
+| `get`     | Get item at index (List and String) | `(get 1 (list 8 20 3))` → `20`                  |
+| `set`     | Set item at index (List and String) | `(set 1 13 (list 8 20 3))` → `(list 8 13 3)`    |
+| `null`    | Empty check                         | `(null (list))` → `true`                        |
+| `range`   | Number range                        | `(range 1 4)` → `(1 2 3)`                       |
+| `concat`  | Concatenate                         | `(concat (list 1) (list 2 3))`                  |
+| `reverse` | Reverse list                        | `(reverse (list 1 2))` → `(2 1)`                |
+| `map`     | Map function                        | `(map square (list 1 2 3))`                     |
+| `filter`  | Filter list                         | `(filter even? (list 1 2 3 4))`                 |
+| `reduce`  | Fold list                           | `(reduce + 0 (list 1 2 3))` → `6`               |
 
 ---
 
