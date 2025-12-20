@@ -2,47 +2,47 @@
 ;; SOLUNA REGRESSION TEST SUITE (WITH VALIDATION)
 ;; ========================================================
 
-;; Helper function to display results
-(function assert (label actual expected)
-    (do
-        (write label)
-        (write " -> Got: ")
-        (write actual)
-        (write " | Expected: ")
-        (writeln expected)))
+(defmacro assert (label actual expected)
+    `(do
+        (write ,label)
+		(if (= ,actual ,expected) (writeln "Passed ]") (writeln "Failed ]"))
+	)
+)
+
+(writeln "[==================================]")
 
 ;; --- T1: Basic Arithmetic & Comparison ---
 (do
     (defvar res1 (+ (* 5 5) 2))
-    (assert "T1: Arithmetic  " res1 27))
+    (assert "[ T1  : Arithmetic       -> " res1 27))
 
 ;; --- T2: Types and Conversion ---
 (do
     (defvar res2 (type (int "123")))
-    (assert "T2: Type Conv   " res2 "Number"))
+    (assert "[ T2  : Type Conv        -> " res2 "Number"))
 
 ;; --- T3: Lists Manipulation ---
 (do
     (defvar my-list (cons 1 (list 2 3)))
     (defvar res3 (fst (rst my-list)))
-    (assert "T3: List Access " res3 2))
+    (assert "[ T3  : List Access      -> " res3 2))
 
 ;; --- T4: Functions & Conditionals ---
 (function is-even? (n) (if (= (mod n 2) 0) true false))
 (do
-    (assert "T4: Function Evn" (is-even? 42) true)
-    (assert "T4: Function Odd" (is-even? 7) false))
+    (assert "[ T4  : Function Evn     -> " (is-even? 42) true)
+    (assert "[ T4  : Function Odd     -> " (is-even? 7) false))
 
 ;; --- T5: Let* (Sequential Bindings) ---
 (do
     (defvar res5 (let* ((a 10) (b (+ a 5))) (- b a)))
-    (assert "T5: Let* Scoping" res5 5))
+    (assert "[ T5  : Let* Scoping     -> " res5 5))
 
 ;; --- T6: Macros (Expansion) ---
 (defmacro unless (cond body) `(if (not ,cond) ,body "SKIP"))
 (do
     (defvar res6 (unless false "OK"))
-    (assert "T6: Macro Expansion" res6 "OK"))
+    (assert "[ T6  : Macro Expansion  -> " res6 "OK"))
 
 ;; --- T7: Pattern Matching ---
 (do
@@ -50,26 +50,30 @@
     (defvar res7 (match test-data
         (((a b) (c d)) (+ a d))
         (default 0)))
-    (assert "T7: Pattern Match" res7 50))
+    (assert "[ T7  : Pattern Match    -> " res7 50))
 
 ;; --- T8: Reduce ---
 (do
     (defvar res8 (reduce + 10 (list 1 2 3)))
-    (assert "T8: Reduce Logic" res8 16))
+    (assert "[ T8  : Reduce Logic     -> " res8 16))
 
 ;; --- T9: Variadic Arguments (&rest) ---
 (function sum-all (&rest nums) (reduce + 0 nums))
 (do
-    (assert "T9: &rest Func  " (sum-all 10 20 30 40) 100))
+    (assert "[ T9  : &rest Func       -> " (sum-all 10 20 30 40) 100))
 
 ;; --- T10: Splicing ---
-;; Note: This test prints the sequence to verify multi-do
-(writeln "--- T10: Splicing (Manual Check) ---")
 (defmacro multi-do (first &rest others) `(do ,first ,@others))
-(multi-do 
-    (writeln "Step A") 
-    (writeln "Step B") 
-    (writeln "Step C"))
+(do (defvar res10
+	(multi-do 
+		(defvar x (list 1 2))
+		(defvar y (list 3 4)) 
+		(defvar x (concat x y))
+		(reduce + 0 x)
+	))
+(assert "[ T10 : Macro splicing   -> " res10 10))
 
-(writeln "========================================================")
-(writeln "TEST SUITE FINISHED")
+; Activate this to check if tests can fail
+; (do (assert "[ FC  : Failure check    -> " false true))
+
+(writeln "[==================================]")
