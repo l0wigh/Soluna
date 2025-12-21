@@ -1,0 +1,3 @@
+(if (= (length args) 1)
+	(writeln (concat "Only one argument found (script name: " (fst args) ")\nTry adding command line arguments"))
+	(writeln args))

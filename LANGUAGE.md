@@ -1,8 +1,5 @@
 # Soluna Language Reference
 
-> **Version:** 0.6.7
-> **Implementation reference:** `bin/main.ml`
-
 ---
 
 ## 1. Lexical Elements
@@ -147,6 +144,12 @@ Pattern matching on values.
 
 Patterns may bind variables and optionally include guards using `(when condition)`.
 
+Patterns can uses `any` keyword to match with multiple values. `(any "pattern" 10 (1 2))`
+
+Patterns can uses `as` to save the pattern values to a variable `(as something)`
+
+You can also mix pattern for more control.
+
 ---
 
 ### 3.5 Exceptions
@@ -211,6 +214,18 @@ Loads and evaluates another Soluna file.
 
 ```lisp
 (include "file.luna")
+```
+
+---
+
+### 3.10 Command line arguments
+
+#### `args`
+
+Soluna will load a variable that contains the command line arguments as a list.
+
+```lisp
+(writeln args)
 ```
 
 ---

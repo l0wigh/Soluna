@@ -1,4 +1,4 @@
-let soluna_version = "0.6.7"
+let soluna_version = "0.6.11"
 type soluna_position = { filename: string; line: int; }
 type soluna_expr =
     | Number of int * soluna_position
@@ -1281,6 +1281,7 @@ let () =
             | _ :: filename :: extra -> begin
                 let data = soluna_read_file filename |> String.to_seq |> List.of_seq in
                 let args_list = List.map (fun s -> String (s, unknown_pos)) extra in
+                let args_list = String (filename, unknown_pos) :: args_list in
                 Hashtbl.replace global_env "args"  (List (args_list, unknown_pos));
                 soluna_tokenizer "" [] data 1 filename
             end

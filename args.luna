@@ -1,4 +1,0 @@
-(match args
-    (nil (writeln "Try adding command line arguments"))
-    (default (writeln args))
-)
