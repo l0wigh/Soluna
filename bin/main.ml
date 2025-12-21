@@ -97,8 +97,9 @@ and soluna_read_list token_acc token_list pos =
         end
     end
 
-let rec soluna_quasiquote_prep s =
+let rec soluna_quasiquote_shebang_prep s =
     s
+    |> remove_shebang
     |> (fun s -> quasiquote_prep_inner s "(" " ( ")
     |> (fun s -> quasiquote_prep_inner s ")" " ) ")
     |> (fun s -> quasiquote_prep_inner s "'" " ' ")
@@ -125,6 +126,14 @@ and quasiquote_prep_inner s search replace =
         end
     in
     loop 0 "" false
+and remove_shebang s =
+    if String.length s >= 2 && String.sub s 0 2 = "#!" then
+        try
+            let first_nl = String.index s '\n' in
+            String.sub s (first_nl + 1) (String.length s - first_nl - 1)
+        with Not_found -> ""
+    else
+        s
 
 let rec soluna_read_program tok_sexp tok_acc =
     match tok_sexp with
@@ -139,10 +148,7 @@ let soluna_read_file filename =
       let ic = open_in filename in
       let content = really_input_string ic (in_channel_length ic) in
       close_in ic;
-      let prepared = 
-         content |> soluna_quasiquote_prep
-      in
-      prepared
+      content |> soluna_quasiquote_shebang_prep
    with
    | Sys_error msg -> failwith (Printf.sprintf "Cannot open file %s" msg)
    | e -> raise e
@@ -1008,7 +1014,7 @@ let soluna_eval_primitive env args =
         let sexp_to_eval = soluna_eval eval_sexp env in
         match sexp_to_eval with
         | String (s, _) -> begin
-            let parsed_sexp = soluna_quasiquote_prep s |> String.to_seq |> List.of_seq in
+            let parsed_sexp = soluna_quasiquote_shebang_prep s |> String.to_seq |> List.of_seq in
             let parsed_sexp = soluna_tokenizer "" [] parsed_sexp 1 "runtime" in
             let program = soluna_read_program parsed_sexp [] in
             let rec eval_program program =
@@ -1267,7 +1273,7 @@ let () =
             | [|_; "-v"|] -> Printf.printf "Soluna %s\n" (font_blue ^ soluna_version ^ font_rst); exit 0
 
             | [|_; "-e"; code|] -> begin
-                let data = code |> String.to_seq |> List.of_seq in
+                let data = code |> soluna_quasiquote_shebang_prep |> String.to_seq |> List.of_seq in
                 soluna_tokenizer "" [] data 1 "command_line"
             end
             | [|_; filename|] -> begin
@@ -1275,7 +1281,7 @@ let () =
                 soluna_tokenizer "" [] data 1 filename
             end
             | _ -> begin
-                let data = soluna_repl |> String.to_seq |> List.of_seq in
+                let data = soluna_repl |> soluna_quasiquote_shebang_prep |> String.to_seq |> List.of_seq in
                 soluna_tokenizer "" [] data 1 "Oracle"
             end
         in

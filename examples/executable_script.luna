@@ -1,0 +1,2 @@
+#!/usr/bin/env -S soluna
+(writeln "Hello coming from executable Soluna code !")
