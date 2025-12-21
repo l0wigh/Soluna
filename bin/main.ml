@@ -1267,27 +1267,32 @@ let soluna_init_env () : env =
     env
 
 let () =
+    let global_env = soluna_init_env () in
     try
-        let parsed_sexp = match Sys.argv with
-            | [|_; "-h"|] -> Printf.eprintf "Usage: %s <filename.luna>" Sys.argv.(0); exit 1
-            | [|_; "-v"|] -> Printf.printf "Soluna %s\n" (font_blue ^ soluna_version ^ font_rst); exit 0
-
-            | [|_; "-e"; code|] -> begin
+        let parsed_sexp = match (Array.to_list Sys.argv) with
+            | _ :: "-h" :: _ -> Printf.eprintf "Usage: %s <filename.luna>" Sys.argv.(0); exit 1
+            | _ :: "-v" :: _ -> Printf.printf "Soluna %s\n" (font_blue ^ soluna_version ^ font_rst); exit 0
+            | _ :: "-e" :: code :: extra -> begin
                 let data = code |> soluna_quasiquote_shebang_prep |> String.to_seq |> List.of_seq in
+                let args_list = List.map (fun s -> String (s, unknown_pos)) extra in
+                Hashtbl.replace global_env "args"  (List (args_list, unknown_pos));
                 soluna_tokenizer "" [] data 1 "command_line"
             end
-            | [|_; filename|] -> begin
+            | _ :: filename :: extra -> begin
                 let data = soluna_read_file filename |> String.to_seq |> List.of_seq in
+                let args_list = List.map (fun s -> String (s, unknown_pos)) extra in
+                Hashtbl.replace global_env "args"  (List (args_list, unknown_pos));
                 soluna_tokenizer "" [] data 1 filename
             end
             | _ -> begin
                 let data = soluna_repl |> soluna_quasiquote_shebang_prep |> String.to_seq |> List.of_seq in
+                let args_list = [] in
+                Hashtbl.replace global_env "args"  (List (args_list, unknown_pos));
                 soluna_tokenizer "" [] data 1 "Oracle"
             end
         in
 
         let program = soluna_read_program parsed_sexp [] in
-        let global_env = soluna_init_env () in
         List.iter (fun sexp -> let _ = soluna_eval sexp global_env in ()) program;
     with
     | Failure msg -> flush stdout; Printf.eprintf "\n%s\n" msg; exit 1
