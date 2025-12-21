@@ -49,8 +49,13 @@ I don't really know exactly what I'll want and what I'll do. Here is a list that
 
 Again, most of this will never be made since it doesn't feel necessary to me.
 
-## Neovim automatic filetype on luna files
+## Neovim configuration
 
+### Plugin to cast spell faster
+
+I built a Neovim plugin to help you do more faster using Soluna. Take a look [here](https://github.com/l0wigh/soluna.nvim)
+
+### Automatic coloring (by cheating)
 ```lua
 vim.cmd [[
 	autocmd BufNewFile,BufRead *.luna :set filetype=lisp
