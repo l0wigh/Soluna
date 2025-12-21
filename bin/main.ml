@@ -1009,7 +1009,7 @@ let soluna_eval_primitive env args =
         match sexp_to_eval with
         | String (s, _) -> begin
             let parsed_sexp = soluna_quasiquote_prep s |> String.to_seq |> List.of_seq in
-            let parsed_sexp = soluna_tokenizer "" [] parsed_sexp 1 "eval" in
+            let parsed_sexp = soluna_tokenizer "" [] parsed_sexp 1 "runtime" in
             let program = soluna_read_program parsed_sexp [] in
             let rec eval_program program =
                 match program with
@@ -1262,17 +1262,22 @@ let soluna_init_env () : env =
 
 let () =
     try
-        let filename = match Sys.argv with
-        | [|_; "-e"; code|] -> (code, false)
-        | [|_; "-h"|] -> Printf.eprintf "Usage: %s <filename.luna>" Sys.argv.(0); exit 1
-        | [|_; "-v"|] -> Printf.printf "Soluna %s\n" (font_blue ^ soluna_version ^ font_rst); exit 0
-        | [|_; filename|] -> (filename, true)
-        | _ -> ("", true) in
+        let parsed_sexp = match Sys.argv with
+            | [|_; "-h"|] -> Printf.eprintf "Usage: %s <filename.luna>" Sys.argv.(0); exit 1
+            | [|_; "-v"|] -> Printf.printf "Soluna %s\n" (font_blue ^ soluna_version ^ font_rst); exit 0
 
-        let parsed_sexp = match filename with
-            | ("", true) -> soluna_tokenizer "" [] (soluna_repl |> String.to_seq |> List.of_seq) 1 "Oracle"
-            | (code, false) -> soluna_tokenizer "" [] (code |> String.to_seq |> List.of_seq) 1 "command_line"
-            | (filename, true) ->  soluna_tokenizer "" [] (filename |> String.to_seq |> List.of_seq) 1 filename
+            | [|_; "-e"; code|] -> begin
+                let data = code |> String.to_seq |> List.of_seq in
+                soluna_tokenizer "" [] data 1 "command_line"
+            end
+            | [|_; filename|] -> begin
+                let data = soluna_read_file filename |> String.to_seq |> List.of_seq in
+                soluna_tokenizer "" [] data 1 filename
+            end
+            | _ -> begin
+                let data = soluna_repl |> String.to_seq |> List.of_seq in
+                soluna_tokenizer "" [] data 1 "Oracle"
+            end
         in
 
         let program = soluna_read_program parsed_sexp [] in
