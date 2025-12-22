@@ -1,4 +1,4 @@
-let soluna_version = "0.6.11"
+let soluna_version = "0.6.12"
 type soluna_position = { filename: string; line: int; }
 type soluna_expr =
     | Number of int * soluna_position
@@ -12,7 +12,7 @@ type soluna_expr =
     | Macro of (string * bool) list * soluna_expr
 type env = (string, soluna_expr) Hashtbl.t
 type soluna_token = { token: string; pos: soluna_position }
-let unknown_pos = { filename = "unknown"; line = 0; }
+let unknown_pos = { filename = "unknown"; line = 1; }
 let font_rst = "\x1b[0m"
 let font_blue = "\x1b[34m\x1b[1m"
 let error_msg = "\x1b[31m\x1b[1mSoluna ERROR\x1b[0m"
@@ -53,26 +53,26 @@ let soluna_color_of_symbol arg =
     | ":blue" -> user_blue
     | _ -> user_reset
 
-let rec soluna_read_tokens token_list =
+let rec soluna_read_tokens token_list pos =
     match token_list with
-    | [] -> failwith (Printf.sprintf "[%s] -> Unexpected EOF" error_msg)
+    | [] -> failwith (Printf.sprintf "[%s] %stokenizer:%d%s -> Unexpected EOF" error_msg font_blue pos.line font_rst)
     | h :: t -> begin
         let pos = h.pos in
         match h.token with
         | "'" -> begin
-            let expr, rem_token = soluna_read_tokens t in
+            let expr, rem_token = soluna_read_tokens t pos in
             (List ([Symbol ("quote", pos); expr], pos), rem_token)
         end
         | "`" -> begin
-            let expr, rem_token = soluna_read_tokens t in
+            let expr, rem_token = soluna_read_tokens t pos in
             (List ([Symbol ("quasiquote", pos); expr], pos), rem_token)
         end
         | ",@" -> begin
-            let expr, rem_token = soluna_read_tokens t in
+            let expr, rem_token = soluna_read_tokens t pos in
             (List ([Symbol ("unquote-splicing", pos); expr], pos), rem_token)
         end
         | "," -> begin
-            let expr, rem_token = soluna_read_tokens t in
+            let expr, rem_token = soluna_read_tokens t pos in
             (List ([Symbol ("unquote", pos); expr], pos), rem_token)
         end
         | "(" -> begin
@@ -92,7 +92,7 @@ and soluna_read_list token_acc token_list pos =
         match h.token with
         | ")" -> (List.rev token_acc, t)
         | _ -> begin
-            let (sexp, rem_tokens) = soluna_read_tokens (h :: t) in
+            let (sexp, rem_tokens) = soluna_read_tokens (h :: t) pos in
             soluna_read_list (sexp :: token_acc) rem_tokens pos
         end
     end
@@ -135,11 +135,22 @@ and remove_shebang s =
     else
         s
 
+let soluna_get_pos sexp =
+    match sexp with
+    | Number (_, pos) | Symbol (_, pos) | Boolean (_, pos) | String (_, pos) | List (_, pos) -> pos
+    | Primitive _ | Lambda _ | Dict _ | Macro _ -> unknown_pos
+
+let soluna_token_pos args =
+    match args with
+    | [] -> unknown_pos
+    | h :: _ -> soluna_get_pos h
+
+
 let rec soluna_read_program tok_sexp tok_acc =
     match tok_sexp with
     | [] -> List.rev tok_acc
     | h -> begin
-        let (found_tok, rem_tokens) = soluna_read_tokens h in
+        let (found_tok, rem_tokens) = soluna_read_tokens h unknown_pos in
         soluna_read_program rem_tokens (found_tok :: tok_acc)
     end
 
@@ -153,30 +164,20 @@ let soluna_read_file filename =
    | Sys_error msg -> failwith (Printf.sprintf "Cannot open file %s" msg)
    | e -> raise e
 
-let rec soluna_get_string sexp str =
+let rec soluna_get_string sexp str line =
     match sexp with
     | '"' :: t -> (str, t)
     | '\\' :: t -> begin
         match t with
-        | 'n' :: tt -> soluna_get_string tt (str ^ "\n")
-        | 't' :: tt -> soluna_get_string tt (str ^ "\t")
-        | '\\' :: tt -> soluna_get_string tt (str ^ "\\")
-        | '"' :: tt -> soluna_get_string tt (str ^ "\"")
-        | h :: tt -> soluna_get_string tt (str ^ (String.make 1 '\\') ^ (String.make 1 h))
-        | [] -> failwith (Printf.sprintf "[%s] -> String ends unexpectedly after escape character" error_msg)
+        | 'n' :: tt -> soluna_get_string tt (str ^ "\n") line
+        | 't' :: tt -> soluna_get_string tt (str ^ "\t") line
+        | '\\' :: tt -> soluna_get_string tt (str ^ "\\") line
+        | '"' :: tt -> soluna_get_string tt (str ^ (String.make 1 '"')) line
+        | h :: tt -> soluna_get_string tt (str ^ (String.make 1 '\\') ^ (String.make 1 h)) line
+        | [] -> failwith (Printf.sprintf "[%s] %stokenizer:%d%s -> String ends unexpectedly after escape character" error_msg font_blue line font_rst)
     end
-    | h :: t -> soluna_get_string t (str ^ String.make 1 h)
-    | _ -> failwith (Printf.sprintf "[%s] -> String needs to be have \" around them" error_msg)
-
-let soluna_get_pos sexp =
-    match sexp with
-    | Number (_, pos) | Symbol (_, pos) | Boolean (_, pos) | String (_, pos) | List (_, pos) -> pos
-    | Primitive _ | Lambda _ | Dict _ | Macro _ -> unknown_pos
-
-let soluna_token_pos args =
-    match args with
-    | [] -> unknown_pos
-    | h :: _ -> soluna_get_pos h
+    | h :: t -> soluna_get_string t (str ^ String.make 1 h) line
+    | _ -> failwith (Printf.sprintf "[%s] %stokenizer:%d%s -> String needs to be have \" around them" error_msg font_blue line font_rst)
 
 let rec soluna_skip_comment sexp =
     match sexp with
@@ -194,7 +195,7 @@ let rec soluna_tokenizer curr_token token_list sexp line filename =
         | '(' | ')' -> if curr_token != "" then soluna_tokenizer "" ({token = String.make 1 h; pos = { filename; line }} :: {token = curr_token; pos = { filename; line }} :: token_list) t line filename else soluna_tokenizer "" ({token = String.make 1 h; pos = { filename; line }} :: token_list) t line filename
         | ';' -> soluna_skip_comment t |> (fun r -> soluna_tokenizer "" token_list r (line + 1) filename)
         | '"' -> begin
-            let (str, next_sexp) = soluna_get_string t "\"" in
+            let (str, next_sexp) = soluna_get_string t "\"" line in
             soluna_tokenizer "" ({token = str; pos = { filename; line }} :: token_list) next_sexp line filename
         end
         | _ -> soluna_tokenizer (curr_token ^ String.make 1 h) token_list t line filename
@@ -436,7 +437,7 @@ let rec soluna_eval sexp (env: env) =
     | String (s, pos) -> String (s, pos)
     | Symbol (s, pos) when String.length s > 1 && s.[0] = ':' -> String (s, pos)
     | Symbol (s, pos) -> (try Hashtbl.find env s with | Not_found -> failwith (Printf.sprintf "[%s] %s:%d%s -> Unbound symbol '%s'" error_msg (font_blue ^ pos.filename) pos.line font_rst s))
-    | _ -> failwith (Printf.sprintf "[%s] -> soluna_eval is missing something" internal_msg)
+    | _ -> failwith (Printf.sprintf "[%s] %sruntime:0%s -> soluna_eval is missing something" internal_msg font_blue font_rst)
 
 and soluna_include_file filename pos env =
     let current_dir = dirname pos.filename in
@@ -615,7 +616,7 @@ and soluna_eval_list_form sexp env =
             end
             | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Expected a Symbol. You might need to use 'do'" error_msg (font_blue ^ pos.filename) pos.line font_rst)
     end
-    | _ -> failwith (Printf.sprintf "[%s] -> soluna_eval_list_form called with non-list expression" internal_msg)
+    | _ -> failwith (Printf.sprintf "[%s] %sruntime:0%s -> soluna_eval_list_form called with non-list expression" internal_msg font_blue font_rst)
 
 and soluna_eval_do expr_list env =
     match expr_list with
@@ -730,17 +731,17 @@ let soluna_concat_primitive args =
         match all_args with
         | [] -> acc
         | String (s, _) :: rest -> join_strings rest (acc ^ s)
-        | _ -> failwith (Printf.sprintf "[%s] -> 'concat' cannot mix Strings and other types" error_msg)
+        | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'concat' cannot mix Strings and other types" error_msg (font_blue ^ pos.filename) pos.line font_rst)
         in
         String (join_strings args "", pos)
     | List (_, _) :: _ -> let rec join_lists all_args acc =
        match all_args with
        | [] -> List (acc, pos)
        | List (elements, _) :: rest -> join_lists rest (acc @ elements)
-       | _ -> failwith (Printf.sprintf "[%s] -> 'concat' cannot mix Lists and other types" error_msg)
+       | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'concat' cannot mix Lists and other types" error_msg (font_blue ^ pos.filename) pos.line font_rst)
        in
        join_lists args []
-    | _ -> failwith (Printf.sprintf "[%s] -> 'concat' requires Lists or Strings" error_msg)
+    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'concat' requires Lists or Strings" error_msg (font_blue ^ pos.filename) pos.line font_rst)
 
 let soluna_range_primitive args =
     let pos = soluna_token_pos args in
@@ -841,10 +842,11 @@ let soluna_cons_primitive args =
     | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'cons' requires an element and a list" error_msg (font_blue ^ pos.filename) pos.line font_rst)
 
 let soluna_map_lambda_to_sexp lambda sexp =
+    let pos = soluna_token_pos [sexp] in
     match lambda with
     | Lambda (params, body, lambda_env) -> begin
         if List.length params <> 1 then
-            failwith (Printf.sprintf "[%s] -> Function passed to 'map' must accept exactly one argument" error_msg)
+            failwith (Printf.sprintf "[%s] %s:%d%s -> Function passed to 'map' must accept exactly one argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
         else
             let local_env = Hashtbl.copy lambda_env in
             let (params, _) = List.hd params in
@@ -852,7 +854,7 @@ let soluna_map_lambda_to_sexp lambda sexp =
             soluna_eval body local_env
     end
     | Primitive fn -> fn [sexp]
-    | _ -> failwith (Printf.sprintf "[%s] -> First argument to 'map' must be a function" error_msg)
+    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> First argument to 'map' must be a function" error_msg (font_blue ^ pos.filename) pos.line font_rst)
 
 let soluna_map_primitive args =
     let pos = soluna_token_pos args in
@@ -866,7 +868,7 @@ let soluna_map_primitive args =
                 let res_t_sexp = map_aux t in
                 match res_t_sexp with
                 | List (l, pos) -> List ((res_h :: l), pos)
-                | _ -> failwith (Printf.sprintf "[%s] -> map recursion broke (tail result was not a List)" internal_msg)
+                | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> map recursion broke (tail result was not a List)" internal_msg (font_blue ^ pos.filename) pos.line font_rst)
             end
         in
         map_aux lst
@@ -888,7 +890,7 @@ let soluna_filter_primitive args =
                     let res_t = filter_aux t in
                     match res_t with
                     | List (l, _) -> List ((h :: l), pos)
-                    | _ -> failwith (Printf.sprintf "[%s] -> filter recursion broke (tail result was not a List)" internal_msg)
+                    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> filter recursion broke (tail result was not a List)" internal_msg (font_blue ^ pos.filename) pos.line font_rst)
                 end
                 | Boolean (false, _) -> filter_aux t
                 | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Functions passed to filter must return a Boolean" error_msg (font_blue ^ pos.filename) pos.line font_rst)
@@ -1297,4 +1299,4 @@ let () =
         List.iter (fun sexp -> let _ = soluna_eval sexp global_env in ()) program;
     with
     | Failure msg -> flush stdout; Printf.eprintf "\n%s\n" msg; exit 1
-    | e -> flush stdout; Printf.eprintf "\n\n[%s] -> Unexpected exception: %s\n" internal_msg (Printexc.to_string e); exit 1
+    | e -> flush stdout; Printf.eprintf "\n\n[%s] %sruntime:0%s -> Unexpected exception: %s\n" internal_msg font_blue font_rst (Printexc.to_string e); exit 1
