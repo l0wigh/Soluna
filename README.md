@@ -1,4 +1,4 @@
-# Soluna 0.6.11
+# Soluna 0.7.0
 
 <p align="center" width="100%">
     <img src="https://raw.githubusercontent.com/l0wigh/Soluna/refs/heads/master/logo_alchemy.gif">
@@ -38,6 +38,14 @@ The code for Oracle is present [here](https://github.com/l0wigh/Soluna/blob/mast
 
 Also protips, use **rlwrap** to expand the capabilities of Oracle.
 
+## Soluna Bundler
+
+Soluna is equipped with a bundler. The way it works is simply by injecting your source code inside Soluna's one, then compile everything.
+
+The executable is in fact the Soluna interpreter running only your code source. It's far from perfect but will do the trick to add some portability.
+
+For the bundler to work you need to have OCaml tools installed (look at the "Build and run" section to know how to install everything).
+
 ## What's to come ?
 
 I don't really know exactly what I'll want and what I'll do. Here is a list that I will follow (or not):
@@ -72,7 +80,7 @@ I might want to clean the code, at some point. For now it works nice and I want 
 
 ## Build and run
 
-You need to install ocaml and dune. Look at the [official website](https://ocaml.org/install) to know how to install all this.
+You need to install OCaml and Dune. Look at the [official website](https://ocaml.org/install) to know how to install all this.
 
 You can then do :
 - build: `dune build`

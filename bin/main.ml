@@ -1,4 +1,4 @@
-let soluna_version = "0.6.12"
+let soluna_version = "0.7.0"
 type soluna_position = { filename: string; line: int; }
 type soluna_expr =
     | Number of int * soluna_position
@@ -13,8 +13,14 @@ type soluna_expr =
 type env = (string, soluna_expr) Hashtbl.t
 type soluna_token = { token: string; pos: soluna_position }
 let unknown_pos = { filename = "unknown"; line = 1; }
+let help_bold = "\027[1m"
+let help_green = "\027[32m"
+let help_yellow = "\027[33m"
+let help_rst = "\027[0m"
 let font_rst = "\x1b[0m"
 let font_blue = "\x1b[34m\x1b[1m"
+let font_green = "\x1b[32m\x1b[1m"
+let font_red = "\x1b[31m\x1b[1m"
 let error_msg = "\x1b[31m\x1b[1mSoluna ERROR\x1b[0m"
 let internal_msg = "\x1b[32m\x1b[1mSoluna INTERNAL\x1b[0m"
 let user_reset = "\x1b[0m"
@@ -1268,35 +1274,86 @@ let soluna_init_env () : env =
     Hashtbl.replace env "dict-contains" (Primitive soluna_dict_contains_primitive);
     env
 
+let soluna_bundler filename =
+    let data = soluna_read_file filename in
+    let template = Printf.sprintf
+         "module Bundler = struct let bundled_code = {script_content|%s|script_content} let code = \"\"\nlet is_bundled = true end\n\
+         %s" data Bundler.bundled_code
+    in
+    let tmp_file = "bundle_tmp.ml" in
+    let oc = open_out tmp_file in
+    output_string oc template;
+    close_out oc;
+
+    let output_name = Filename.chop_extension filename in
+    let output_name = String.split_on_char '/' output_name in
+    let output_name = List.nth (List.rev output_name) 0 in
+    let status = Sys.command (Printf.sprintf "ocamlopt -o %s %s" output_name tmp_file) in
+    let _ = Sys.command "rm bundle_tmp.*" in
+    if status = 0 then
+        print_endline ((font_green ^ output_name) ^ font_rst ^ " successfully invoked")
+    else
+        print_endline (font_red ^ "Error" ^ font_rst ^ " when invoking " ^ filename)
+
+let soluna_print_help =
+  Printf.printf "%sSoluna %s%s - Lisp dialect written in OCaml\n\n" help_bold soluna_version help_rst;
+  Printf.printf "%sUSAGE:%s\n" help_yellow help_rst;
+  Printf.printf "  soluna [command|file] [arguments...]\n\n";
+  Printf.printf "%sCOMMANDS:%s\n" help_yellow help_rst;
+  Printf.printf "  %s%-10s%s Execute a file\n" help_green "<file>" help_rst;
+  Printf.printf "  %s%-10s%s Evaluate a string of code directly\n" help_green "eval" help_rst;
+  Printf.printf "  %s%-10s%s Create a standalone executable from a script\n" help_green "bundle" help_rst;
+  Printf.printf "  %s%-10s%s Show current version\n" help_green "version" help_rst;
+  Printf.printf "  %s%-10s%s Show this help message\n\n" help_green "help" help_rst;
+  Printf.printf "%sEXAMPLES:%s\n" help_yellow help_rst;
+  Printf.printf "  soluna (Launch the Oracle REPL)\n";
+  Printf.printf "  soluna script.luna\n";
+  Printf.printf "  soluna eval \"(writeln 'hi')\"\n";
+  Printf.printf "  soluna bundle main.luna\n";
+  ()
+
 let () =
     let global_env = soluna_init_env () in
     try
-        let parsed_sexp = match (Array.to_list Sys.argv) with
-            | _ :: "-h" :: _ -> Printf.eprintf "Usage: %s <filename.luna>" Sys.argv.(0); exit 1
-            | _ :: "-v" :: _ -> Printf.printf "Soluna %s\n" (font_blue ^ soluna_version ^ font_rst); exit 0
-            | _ :: "-e" :: code :: extra -> begin
-                let data = code |> soluna_quasiquote_shebang_prep |> String.to_seq |> List.of_seq in
-                let args_list = List.map (fun s -> String (s, unknown_pos)) extra in
-                Hashtbl.replace global_env "args"  (List (args_list, unknown_pos));
-                soluna_tokenizer "" [] data 1 "command_line"
-            end
-            | _ :: filename :: extra -> begin
-                let data = soluna_read_file filename |> String.to_seq |> List.of_seq in
-                let args_list = List.map (fun s -> String (s, unknown_pos)) extra in
-                let args_list = String (filename, unknown_pos) :: args_list in
-                Hashtbl.replace global_env "args"  (List (args_list, unknown_pos));
-                soluna_tokenizer "" [] data 1 filename
-            end
-            | _ -> begin
-                let data = soluna_repl |> soluna_quasiquote_shebang_prep |> String.to_seq |> List.of_seq in
-                let args_list = [] in
-                Hashtbl.replace global_env "args"  (List (args_list, unknown_pos));
-                soluna_tokenizer "" [] data 1 "Oracle"
-            end
-        in
-
-        let program = soluna_read_program parsed_sexp [] in
-        List.iter (fun sexp -> let _ = soluna_eval sexp global_env in ()) program;
+        if Bundler.is_bundled then
+            let data = Bundler.bundled_code |> soluna_quasiquote_shebang_prep |> String.to_seq |> List.of_seq in
+            let args_list = List.map (fun s -> String (s, unknown_pos)) (Array.to_list Sys.argv) in
+            Hashtbl.replace global_env "args"  (List (args_list, unknown_pos));
+            let filename = match args_list with
+                | String (f, _) :: _ -> f
+                | _ -> "bundled"
+            in
+            let parsed_sexp = soluna_tokenizer "" [] data 1 filename  in
+            let program = soluna_read_program parsed_sexp [] in
+            List.iter (fun sexp -> let _ = soluna_eval sexp global_env in ()) program;
+        else begin
+            let parsed_sexp = match (Array.to_list Sys.argv) with
+                | _ :: "help" :: _ -> soluna_print_help; exit 0
+                | _ :: "version" :: _ -> Printf.printf "Soluna %s\n" (font_blue ^ soluna_version ^ font_rst); exit 0
+                | _ :: "bundle" :: filename :: _ -> soluna_bundler filename; exit 0
+                | _ :: "eval" :: code :: extra -> begin
+                    let data = code |> soluna_quasiquote_shebang_prep |> String.to_seq |> List.of_seq in
+                    let args_list = List.map (fun s -> String (s, unknown_pos)) extra in
+                    Hashtbl.replace global_env "args"  (List (args_list, unknown_pos));
+                    soluna_tokenizer "" [] data 1 "command_line"
+                end
+                | _ :: filename :: extra -> begin
+                    let data = soluna_read_file filename |> String.to_seq |> List.of_seq in
+                    let args_list = List.map (fun s -> String (s, unknown_pos)) extra in
+                    let args_list = String (filename, unknown_pos) :: args_list in
+                    Hashtbl.replace global_env "args"  (List (args_list, unknown_pos));
+                    soluna_tokenizer "" [] data 1 filename
+                end
+                | _ -> begin
+                    let data = soluna_repl |> soluna_quasiquote_shebang_prep |> String.to_seq |> List.of_seq in
+                    let args_list = [] in
+                    Hashtbl.replace global_env "args"  (List (args_list, unknown_pos));
+                    soluna_tokenizer "" [] data 1 "Oracle"
+                end
+            in
+            let program = soluna_read_program parsed_sexp [] in
+            List.iter (fun sexp -> let _ = soluna_eval sexp global_env in ()) program;
+        end
     with
     | Failure msg -> flush stdout; Printf.eprintf "\n%s\n" msg; exit 1
     | e -> flush stdout; Printf.eprintf "\n\n[%s] %sruntime:0%s -> Unexpected exception: %s\n" internal_msg font_blue font_rst (Printexc.to_string e); exit 1
