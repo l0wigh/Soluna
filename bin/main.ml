@@ -33,6 +33,23 @@ open Filename
 
 let soluna_repl = "(function closed_expression (lst) (do(defvar opening (length (filter (lambda (x) (if (= x \"(\") true false)) lst)))(defvar closing (length (filter (lambda (x) (if (= x \")\") true false)) lst)))(if (<= opening closing) true false)))(function oracle () (do(defvar prompt \"oracle λ \")(defvar kill-switch true)(defvar show-return true)(defvar unclosed (list))(while kill-switch(do(defvar user-input (input prompt))(case((= user-input \"exit\") (defvar kill-switch false))((= user-input \"hide\") (do (defvar show-return false) (writeln \"Sexp values are now hidden\")))((= user-input \"show\") (do (defvar show-return true) (writeln \"Sexp values are now written\")))(default (try (do(defvar unclosed (cons \" \" unclosed))(defvar sexp (implode (reverse (cons user-input unclosed))))(case ((closed_expression (explode sexp)) (do(defvar sexp (eval sexp))(defvar prompt \"oracle λ \")(if show-return (do(write \"- : \")(defvar sexp_type (type sexp))(case((= sexp_type \"Lambda\") (defvar sexp_type \"\"))(default (defvar sexp_type (implode (list sexp_type \" \")))))(write sexp_type :green)(writeln sexp :green)(defvar unclosed (list)))())))(default (do(defvar prompt \"... \")(defvar unclosed (cons user-input unclosed))))))(e (writeln e)))))))))(oracle)"
 
+let soluna_print_help () =
+  Printf.printf "%sSoluna %s%s - Lisp dialect written in OCaml\n\n" help_bold soluna_version help_rst;
+  Printf.printf "%sUSAGE:%s\n" help_yellow help_rst;
+  Printf.printf "  soluna [command|file] [arguments...]\n\n";
+  Printf.printf "%sCOMMANDS:%s\n" help_yellow help_rst;
+  Printf.printf "  %s%-10s%s Execute a file\n" help_green "<file>" help_rst;
+  Printf.printf "  %s%-10s%s Evaluate a string of code directly\n" help_green "eval" help_rst;
+  Printf.printf "  %s%-10s%s Create a standalone executable from a script\n" help_green "bundle" help_rst;
+  Printf.printf "  %s%-10s%s Show current version\n" help_green "version" help_rst;
+  Printf.printf "  %s%-10s%s Show this help message\n\n" help_green "help" help_rst;
+  Printf.printf "%sEXAMPLES:%s\n" help_yellow help_rst;
+  Printf.printf "  soluna (Launch the Oracle REPL)\n";
+  Printf.printf "  soluna script.luna\n";
+  Printf.printf "  soluna eval \"(writeln 'hi')\"\n";
+  Printf.printf "  soluna bundle main.luna\n";
+  exit 0
+
 let soluna_parse_atom ptoken =
     let token = ptoken.token in
     let pos = ptoken.pos in
@@ -1295,23 +1312,6 @@ let soluna_bundler filename =
     else
         print_endline (font_red ^ "Error" ^ font_rst ^ " when invoking " ^ filename)
 
-let soluna_print_help =
-  Printf.printf "%sSoluna %s%s - Lisp dialect written in OCaml\n\n" help_bold soluna_version help_rst;
-  Printf.printf "%sUSAGE:%s\n" help_yellow help_rst;
-  Printf.printf "  soluna [command|file] [arguments...]\n\n";
-  Printf.printf "%sCOMMANDS:%s\n" help_yellow help_rst;
-  Printf.printf "  %s%-10s%s Execute a file\n" help_green "<file>" help_rst;
-  Printf.printf "  %s%-10s%s Evaluate a string of code directly\n" help_green "eval" help_rst;
-  Printf.printf "  %s%-10s%s Create a standalone executable from a script\n" help_green "bundle" help_rst;
-  Printf.printf "  %s%-10s%s Show current version\n" help_green "version" help_rst;
-  Printf.printf "  %s%-10s%s Show this help message\n\n" help_green "help" help_rst;
-  Printf.printf "%sEXAMPLES:%s\n" help_yellow help_rst;
-  Printf.printf "  soluna (Launch the Oracle REPL)\n";
-  Printf.printf "  soluna script.luna\n";
-  Printf.printf "  soluna eval \"(writeln 'hi')\"\n";
-  Printf.printf "  soluna bundle main.luna\n";
-  ()
-
 let () =
     let global_env = soluna_init_env () in
     try
@@ -1326,9 +1326,10 @@ let () =
             let parsed_sexp = soluna_tokenizer "" [] data 1 filename  in
             let program = soluna_read_program parsed_sexp [] in
             List.iter (fun sexp -> let _ = soluna_eval sexp global_env in ()) program;
-        else begin
+            ()
+        else
             let parsed_sexp = match (Array.to_list Sys.argv) with
-                | _ :: "help" :: _ -> soluna_print_help; exit 0
+                | _ :: "help" :: _ -> soluna_print_help ()
                 | _ :: "version" :: _ -> Printf.printf "Soluna %s\n" (font_blue ^ soluna_version ^ font_rst); exit 0
                 | _ :: "bundle" :: filename :: _ -> soluna_bundler filename; exit 0
                 | _ :: "eval" :: code :: extra -> begin
@@ -1353,7 +1354,7 @@ let () =
             in
             let program = soluna_read_program parsed_sexp [] in
             List.iter (fun sexp -> let _ = soluna_eval sexp global_env in ()) program;
-        end
+            ()
     with
     | Failure msg -> flush stdout; Printf.eprintf "\n%s\n" msg; exit 1
     | e -> flush stdout; Printf.eprintf "\n\n[%s] %sruntime:0%s -> Unexpected exception: %s\n" internal_msg font_blue font_rst (Printexc.to_string e); exit 1
