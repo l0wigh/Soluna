@@ -42,7 +42,7 @@ Also protips, use **rlwrap** to expand the capabilities of Oracle.
 
 Soluna is equipped with a bundler. The way it works is simply by injecting your source code inside Soluna's one, then compile everything.
 
-The executable is in fact the Soluna interpreter running only your code source. It's far from perfect but will do the trick to add some portability.
+The executable is in fact the Soluna interpreter running only your source code. It's far from perfect but will do the trick to add some portability.
 
 For the bundler to work you need to have OCaml tools installed (look at the "Build and run" section to know how to install everything).
 
