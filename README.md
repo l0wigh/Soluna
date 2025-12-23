@@ -63,14 +63,11 @@ Again, most of this will never be made since it doesn't feel necessary to me.
 
 I built a Neovim plugin to help you do more faster using Soluna. Take a look [here](https://github.com/l0wigh/soluna.nvim)
 
-### Automatic coloring (by cheating)
-```lua
-vim.cmd [[
-	autocmd BufNewFile,BufRead *.luna :set filetype=lisp
-]]
-```
+### Tree-sitter highlight
 
-For vim, just takes what is inside the vim.cmd block
+I made a tree-sitter parser for Soluna, it's available [here](https://github.com/l0wigh/tree-sitter-soluna).
+
+You'll need to install it manually for now. The project isn't mature enough and I don't feel confortable to do a pull request on the nvim-treesitter repo.
 
 ## The OCaml code is... interesting
 
