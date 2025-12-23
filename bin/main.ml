@@ -1,4 +1,4 @@
-let soluna_version = "0.7.0"
+let soluna_version = "0.7.1"
 type soluna_position = { filename: string; line: int; }
 type soluna_expr =
     | Number of int * soluna_position
@@ -59,8 +59,9 @@ let soluna_parse_atom ptoken =
     | "nil" -> List ([], pos)
     | _ -> begin
         if token.[0] = '\"' then
-            let string_split = String.split_on_char '"' token in
-            String ((List.nth string_split 1), pos)
+            let token_length = String.length token in
+            let raw_string = String.sub token 1 (token_length - 1) in
+            String (raw_string, pos)
         else
             try
                 Number ((int_of_string token), pos)
@@ -195,12 +196,12 @@ let rec soluna_get_string sexp str line =
         | 'n' :: tt -> soluna_get_string tt (str ^ "\n") line
         | 't' :: tt -> soluna_get_string tt (str ^ "\t") line
         | '\\' :: tt -> soluna_get_string tt (str ^ "\\") line
-        | '"' :: tt -> soluna_get_string tt (str ^ (String.make 1 '"')) line
-        | h :: tt -> soluna_get_string tt (str ^ (String.make 1 '\\') ^ (String.make 1 h)) line
+        | '"' :: tt -> soluna_get_string tt (str ^ "\"") line
+        | h :: tt -> soluna_get_string tt (str ^ "\\" ^ String.make 1 h) line
         | [] -> failwith (Printf.sprintf "[%s] %stokenizer:%d%s -> String ends unexpectedly after escape character" error_msg font_blue line font_rst)
     end
     | h :: t -> soluna_get_string t (str ^ String.make 1 h) line
-    | _ -> failwith (Printf.sprintf "[%s] %stokenizer:%d%s -> String needs to be have \" around them" error_msg font_blue line font_rst)
+    | [] -> failwith (Printf.sprintf "[%s] %stokenizer:%d%s -> String needs to be have \" around them" error_msg font_blue line font_rst)
 
 let rec soluna_skip_comment sexp =
     match sexp with
@@ -713,6 +714,7 @@ let soluna_write_string s =
             match s.[i+1] with
             | 'n' -> Buffer.add_char buffer '\n'; loop (i + 2)
             | 't' -> Buffer.add_char buffer '\t'; loop (i + 2)
+            | '"' -> Buffer.add_char buffer '\"'; loop (i + 2)
             | '\\' -> Buffer.add_char buffer '\\'; loop (i + 2)
             | c -> Buffer.add_char buffer '\\'; Buffer.add_char buffer c; loop (i + 2)
         end else begin
