@@ -871,7 +871,7 @@ let soluna_map_lambda_to_sexp lambda sexp =
     match lambda with
     | Lambda (params, body, lambda_env) -> begin
         if List.length params <> 1 then
-            failwith (Printf.sprintf "[%s] %s:%d%s -> Function passed to 'map' must accept exactly one argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+            failwith (Printf.sprintf "[%s] %s:%d%s -> Function passed to 'map' or 'filter' must accept exactly one argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
         else
             let local_env = Hashtbl.copy lambda_env in
             let (params, _) = List.hd params in
@@ -879,7 +879,7 @@ let soluna_map_lambda_to_sexp lambda sexp =
             soluna_eval body local_env
     end
     | Primitive fn -> fn [sexp]
-    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> First argument to 'map' must be a function" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> First argument passed to 'map' or 'filter' must be a function" error_msg (font_blue ^ pos.filename) pos.line font_rst)
 
 let soluna_map_primitive args =
     let pos = soluna_token_pos args in
