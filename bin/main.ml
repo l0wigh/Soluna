@@ -1,4 +1,4 @@
-let soluna_version = "0.8.0"
+let soluna_version = "0.8.1"
 type soluna_position = { filename: string; line: int; }
 type cmp_op = Eq | Neq | Lt | Gt | Leq | Geq
 type number =
@@ -1414,16 +1414,23 @@ let soluna_init_env () : env =
     env
 
 let rec soluna_bundler_get_full_source filename =
-    let lines = soluna_read_file filename |> String.split_on_char '\n' in
-    List.map (fun line ->
-        let trimmed = String.trim line in
-        if String.starts_with ~prefix:"(include \"" trimmed then
-            let len = String.length trimmed in
-            let included_file = String.sub trimmed 10 (len - 12) in
-            soluna_bundler_get_full_source included_file
-        else
-            line
-    ) lines |> String.concat "\n"
+    let content = soluna_read_file filename in
+    let list = String.split_on_char '\n' content in
+    let final = List.map (fun s ->
+        let prepared = soluna_bundler_remove_spaces s in
+        if String.starts_with ~prefix:"(include\"" prepared then
+            let split = String.split_on_char '"' prepared in
+            let include_filename = List.nth split 1 in
+            print_string ("Invoking " ^ font_green ^ include_filename ^ font_rst ^ "\n");
+            flush stdout; 
+            (* print_string ("Invoking " ^ font_green ^ include_filename ^ font_rst ^ "\r"); *)
+            soluna_bundler_get_full_source include_filename
+        else s
+    ) list in
+    final |> String.concat "\n"
+and soluna_bundler_remove_spaces s =
+    let list = String.to_seq s |> List.of_seq |> List.filter (fun c -> if c == ' ' then false else true) in
+    List.to_seq list |> String.of_seq
 
 let soluna_bundler filename =
     let data = soluna_bundler_get_full_source filename in
