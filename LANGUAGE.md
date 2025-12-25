@@ -219,6 +219,8 @@ Loads and evaluates another Soluna file.
 It is recommended that you use include at the beginning of a newline and that you only put one by line.
 This rules is to be sure that the bundler is able to detect and add every included files into your executable.
 
+Yes, you can currently create infinite loop with it. Don't be stupid.
+
 ---
 
 ### 3.10 Command line arguments
