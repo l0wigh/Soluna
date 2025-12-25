@@ -45,6 +45,7 @@ let soluna_print_help () =
   Printf.printf "  %s%-10s%s Execute a file\n" help_green "<file>" help_rst;
   Printf.printf "  %s%-10s%s Evaluate a string of code directly\n" help_green "eval" help_rst;
   Printf.printf "  %s%-10s%s Create a standalone executable from a script\n" help_green "bundle" help_rst;
+  Printf.printf "  %s%-10s%s Create a project folder with default structure\n" help_green "new" help_rst;
   Printf.printf "  %s%-10s%s Show current version\n" help_green "version" help_rst;
   Printf.printf "  %s%-10s%s Show this help message\n\n" help_green "help" help_rst;
   Printf.printf "%sEXAMPLES:%s\n" help_yellow help_rst;
@@ -1453,6 +1454,15 @@ let soluna_bundler filename =
     else
         print_endline (font_red ^ "Error" ^ font_rst ^ " when invoking " ^ filename)
 
+let soluna_new_project foldername =
+    try
+        let command = Printf.sprintf "mkdir -p %s/libs; echo '(writeln \"Hello World !\")' > %s/main.luna" foldername foldername in
+        match Sys.command command with
+        | 0 -> print_endline (font_green ^ foldername ^ font_rst ^ " project created")
+        | _ -> failwith (Printf.sprintf "An error happend while creating the project %s" (font_green ^ foldername ^ font_rst))
+    with
+    | _ -> failwith (Printf.sprintf "An error happend while creating the project %s" (font_green ^ foldername ^ font_rst))
+
 let () =
     let global_env = soluna_init_env () in
     try
@@ -1473,6 +1483,7 @@ let () =
                 | _ :: "help" :: _ -> soluna_print_help ()
                 | _ :: "version" :: _ -> Printf.printf "Soluna %s\n" (font_blue ^ soluna_version ^ font_rst); exit 0
                 | _ :: "bundle" :: filename :: _ -> soluna_bundler filename; exit 0
+                | _ :: "new" :: foldername :: _ -> soluna_new_project foldername; exit 0
                 | _ :: "eval" :: code :: extra -> begin
                     let data = code |> soluna_quasiquote_shebang_prep |> String.to_seq |> List.of_seq in
                     let args_list = List.map (fun s -> String (s, unknown_pos)) extra in
