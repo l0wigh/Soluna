@@ -1413,8 +1413,20 @@ let soluna_init_env () : env =
     Hashtbl.replace env "dict-contains" (Primitive soluna_dict_contains_primitive);
     env
 
+let rec soluna_bundler_get_full_source filename =
+    let lines = soluna_read_file filename |> String.split_on_char '\n' in
+    List.map (fun line ->
+        let trimmed = String.trim line in
+        if String.starts_with ~prefix:"(include \"" trimmed then
+            let len = String.length trimmed in
+            let included_file = String.sub trimmed 10 (len - 12) in
+            soluna_bundler_get_full_source included_file
+        else
+            line
+    ) lines |> String.concat "\n"
+
 let soluna_bundler filename =
-    let data = soluna_read_file filename in
+    let data = soluna_bundler_get_full_source filename in
     let template = Printf.sprintf
          "module Bundler = struct let bundled_code = {script_content|%s|script_content} let code = \"\"\nlet is_bundled = true end\n\
          %s" data Bundler.bundled_code
