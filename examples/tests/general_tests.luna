@@ -5,9 +5,9 @@
 (defmacro assert (label actual expected)
     `(do
         (write ,label)
-		(if (= ,actual ,expected) (writeln "Passed ]") (writeln "Failed ]"))
-	)
-)
+      (if (= ,actual ,expected) (writeln "Passed ]") (writeln "Failed ]"))))
+  
+
 
 (writeln "[==================================]")
 
@@ -19,7 +19,7 @@
 ;; --- T2: Types and Conversion ---
 (do
     (defvar res2 (type (int "123")))
-    (assert "[ T2  : Type Conv        -> " res2 "Number"))
+    (assert "[ T2  : Type Conv        -> " res2 "Integer"))
 
 ;; --- T3: Lists Manipulation ---
 (do
@@ -48,8 +48,8 @@
 (do
     (defvar test-data (list (list 10 20) (list 30 40)))
     (defvar res7 (match test-data
-        (((a b) (c d)) (+ a d))
-        (default 0)))
+                  (((a b) (c d)) (+ a d))
+                  (default 0)))
     (assert "[ T7  : Pattern Match    -> " res7 50))
 
 ;; --- T8: Reduce ---
@@ -65,13 +65,13 @@
 ;; --- T10: Splicing ---
 (defmacro multi-do (first &rest others) `(do ,first ,@others))
 (do (defvar res10
-	(multi-do 
-		(defvar x (list 1 2))
-		(defvar y (list 3 4)) 
-		(defvar x (concat x y))
-		(reduce + 0 x)
-	))
-(assert "[ T10 : Macro splicing   -> " res10 10))
+     (multi-do 
+      (defvar x (list 1 2))
+      (defvar y (list 3 4)) 
+      (defvar x (concat x y))
+      (reduce + 0 x)))
+  
+ (assert "[ T10 : Macro splicing   -> " res10 10))
 
 ; Activate this to check if tests can fail
 ; (do (assert "[ FC  : Failure check    -> " false true))

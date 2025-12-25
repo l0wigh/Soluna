@@ -1,7 +1,11 @@
-let soluna_version = "0.7.1"
+let soluna_version = "0.8.0"
 type soluna_position = { filename: string; line: int; }
+type cmp_op = Eq | Neq | Lt | Gt | Leq | Geq
+type number =
+    | Integer of int
+    | Float of float
 type soluna_expr =
-    | Number of int * soluna_position
+    | Number of number * soluna_position
     | Symbol of string * soluna_position
     | Boolean of bool * soluna_position
     | List of soluna_expr list * soluna_position
@@ -63,10 +67,12 @@ let soluna_parse_atom ptoken =
             let raw_string = String.sub token 1 (token_length - 1) in
             String (raw_string, pos)
         else
-            try
-                Number ((int_of_string token), pos)
-            with
-            | Failure _ -> Symbol (token, pos)
+            if String.contains token '.' then
+                try Number (Float (float_of_string token), pos)
+                with Failure _ -> Symbol (token, pos)
+            else
+                try Number (Integer (int_of_string token), pos)
+                with Failure _ -> Symbol (token, pos)
     end
 
 let soluna_color_of_symbol arg =
@@ -239,7 +245,14 @@ let rec soluna_string_of_sexp sexp =
           String.sub output 0 (String.length output - 2) ^ "}"
       else "{}"
   end
-  | Number (n, _) -> Printf.sprintf "%d" n
+  | Number (n, _) -> begin
+      match n with
+      | Integer i -> Printf.sprintf "%d" i
+      | Float f -> begin
+          let s = Printf.sprintf "%.10g" f in
+          if String.contains s '.' || String.contains s 'e' then s else s ^ ".0"
+      end
+  end
   | Symbol (s, _) -> s
   | Boolean (b, _) -> if b then "true" else "false"
   | List ([], _) -> "Nil"
@@ -651,41 +664,72 @@ and soluna_eval_do expr_list env =
         soluna_eval_do t env
     end
 
-let soluna_arithmetic_primitive art args =
+let rec soluna_arithmetic_primitive op_int op_float ?(force_float=false) args =
     let pos = match args with [] -> unknown_pos | h :: _ -> soluna_get_pos h in
     let numbers = List.map (fun sexp ->
         match sexp with
         | Number (n, _) -> n
-        | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Arithmetic operation requires numbers" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+        | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Arithmetic operation requires Numbers" error_msg (font_blue ^ pos.filename) pos.line font_rst)
     ) args in
     match numbers with
     | [] -> failwith (Printf.sprintf "[%s] %s:%d%s -> Arithmetic operation requires at least one argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
-    | h :: t -> begin
-        let result = List.fold_left art h t in
-        Number (result, unknown_pos)
-    end
+    | h :: t -> 
+        let raw_result = List.fold_left (fun acc next ->
+            match acc, next with
+            | Integer a, Integer b when not force_float -> Integer (op_int a b)
+            | _ -> 
+                let fa = match acc with Integer i -> float_of_int i | Float f -> f in
+                let fb = match next with Integer i -> float_of_int i | Float f -> f in
+                Float (op_float fa fb)
+        ) h t in
+        Number (simplify_num raw_result, unknown_pos)
+and simplify_num num =
+    match num with
+    | Float f -> 
+        if f = Float.round f then Integer (int_of_float f)
+        else Float f
+    | Integer i -> Integer i
 
-let soluna_comparaison_primtive op args =
+let soluna_comparaison_primitive mode args =
     let pos = soluna_token_pos args in
+    let epsilon = 1e-11 in
+    
     match args with
-    | [Number (a, _); Number (b, _)] -> Boolean ((op a b), pos)
-    | [String (a, _); String (b, _)] -> begin 
-        match (String.compare a b) with
-        | 0 -> Boolean (true, pos)
-        | _ -> Boolean (false, pos)
-    end
-    | [Boolean (a, _); Boolean (b, _)] -> begin
-        match a, b with
-        | true, true -> Boolean (true, pos)
-        | false, false -> Boolean (true, pos)
-        | _ -> Boolean (false, pos)
-    end
-    | [List (a, _); List (b, _)] -> begin
-        match a, b with
-        | a, b when a = b -> Boolean (true, pos)
-        | _ -> Boolean (false, pos)
-    end
-    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Comparison requires two arguments of the same type" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+    | [Number (num_a, _); Number (num_b, _)] -> 
+        let a = match num_a with Integer i -> float_of_int i | Float f -> f in
+        let b = match num_b with Integer i -> float_of_int i | Float f -> f in
+        let res = match mode with
+            | Eq  -> abs_float (a -. b) < epsilon
+            | Neq -> abs_float (a -. b) >= epsilon
+            | Lt  -> a < b
+            | Gt  -> a > b
+            | Leq -> a <= b
+            | Geq -> a >= b
+        in Boolean (res, pos)
+    | [String (a, _); String (b, _)] -> 
+        let res = match mode with
+            | Eq  -> a = b
+            | Neq -> a <> b
+            | Lt  -> a < b
+            | Gt  -> a > b
+            | Leq -> a <= b
+            | Geq -> a >= b
+        in Boolean (res, pos)
+    | [Boolean (a, _); Boolean (b, _)] -> 
+        let res = match mode with
+            | Eq  -> a = b
+            | Neq -> a <> b
+            | _   -> failwith "Seuls = et != sont valides pour les booleens"
+        in Boolean (res, pos)
+    | [List (a, _); List (b, _)] -> 
+        let res = match mode with
+            | Eq  -> a = b
+            | Neq -> a <> b
+            | _   -> failwith "Seuls = et != sont valides pour les listes"
+        in Boolean (res, pos)
+    | _ -> 
+        failwith (Printf.sprintf "[%s] %s:%d%s -> Comparison requires two arguments of the same type" 
+                  error_msg (font_blue ^ pos.filename) pos.line font_rst)
 
 let soluna_not_primitive args =
     let pos = soluna_token_pos args in
@@ -698,9 +742,18 @@ let soluna_not_primitive args =
 let soluna_modulo_primitive args =
     let pos = soluna_token_pos args in
     match args with
-    | [Number (a, _); Number (b, _)] -> begin 
-        if b = 0 then failwith (Printf.sprintf "[%s] %s:%d%s -> Division by zero" error_msg (font_blue ^ pos.filename) pos.line font_rst)
-        else Number ((a mod b), unknown_pos)
+    | [Number (num_a, _); Number (num_b, _)] -> begin 
+        match num_a, num_b with
+        | Integer a, Integer b -> begin
+            if b = 0 then failwith (Printf.sprintf "[%s] %s:%d%s -> Division by zero" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+            else Number (Integer (a mod b), pos)
+        end
+        | _ -> begin
+            let fa = match num_a with Integer i -> float_of_int i | Float f -> f in
+            let fb = match num_b with Integer i -> float_of_int i | Float f -> f in
+            if fb = 0.0 then failwith (Printf.sprintf "[%s] %s:%d%s -> Division by zero" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+            else Number (Float (Float.rem fa fb), pos)
+        end
     end
     | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Modulo operation requires two numbers" error_msg (font_blue ^ pos.filename) pos.line font_rst)
 
@@ -772,11 +825,15 @@ let soluna_range_primitive args =
     let pos = soluna_token_pos args in
     let rec range_aux start_v end_v acc =
         if end_v < start_v then acc
-        else range_aux start_v (end_v - 1) (Number (end_v, unknown_pos) :: acc)
+        else range_aux start_v (end_v - 1) (Number (Integer end_v, unknown_pos) :: acc)
     in
     match args with
-    | [Number (sv, p); Number (ev, _)] -> List (range_aux sv ev [], p)
-    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'range' primitive requires two Number as argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+    | [Number (sv, p); Number (ev, _)] -> begin
+        match sv, ev with
+        | Integer s, Integer e -> List (range_aux s e [], p)
+        | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'range' primitive requires two Integers as argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+    end
+    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'range' primitive requires two Integers as argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
 
 let soluna_fst_primitive args =
     let pos = soluna_token_pos args in
@@ -799,12 +856,16 @@ let soluna_set_primitve env args =
         let index = soluna_eval index_sexp env in
         let new_val = soluna_eval new_sexp env in
         match index with
-        | Number (i, _) -> begin
-            try List (List.mapi (fun pos x -> if i = pos then new_val else x) lst, pos)
-            with
-            | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Index out of bounds" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+        | Number (num, _) -> begin
+            match num with
+            | Integer i -> begin
+                try List (List.mapi (fun pos x -> if i = pos then new_val else x) lst, pos)
+                with
+                | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Index out of bounds" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+            end
+            | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'set' requires a string or a number to modify a list" error_msg (font_blue ^ pos.filename) pos.line font_rst)
         end
-        | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'set' requires a String or a Number to modify a List" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+        | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'set' requires a String or a number to modify a list" error_msg (font_blue ^ pos.filename) pos.line font_rst)
     end
     | [index_sexp; new_sexp; String (s, pos)] -> begin
         let index = soluna_eval index_sexp env in
@@ -814,14 +875,18 @@ let soluna_set_primitve env args =
             | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'set' requires a String to modify a String" error_msg (font_blue ^ pos.filename) pos.line font_rst)
         in
         match index with
-        | Number (i, _) -> begin
-            try String (String.mapi (fun pos c -> if pos = i then new_val.[0] else c) s, pos)
-            with
-            | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Index out of bounds" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+        | Number (num, _) -> begin
+            match num with
+            | Integer i -> begin
+                try String (String.mapi (fun pos c -> if pos = i then new_val.[0] else c) s, pos)
+                with
+                | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Index out of bounds" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+            end
+            | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'set' requires an Integer, a String or a Number to set and a List or a String" error_msg (font_blue ^ pos.filename) pos.line font_rst)
         end
-        | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'set' requires a Number, a String or a Number to set and a List or a String" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+        | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'set' requires an Integer, a String or a Number to set and a List or a String" error_msg (font_blue ^ pos.filename) pos.line font_rst)
     end
-    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'set' requires a Number, a String or a Number to set and a List or a String" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'set' requires an Integer, a String or a Number to set and a List or a String" error_msg (font_blue ^ pos.filename) pos.line font_rst)
 
 let soluna_get_primitve env args =
     let pos = soluna_token_pos args in
@@ -829,27 +894,35 @@ let soluna_get_primitve env args =
     | [index_sexp; List (lst, pos)] -> begin
         let index = soluna_eval index_sexp env in
         match index with
-        | Number (i, _) -> begin
-            try
-                List.nth lst i
-            with
-            | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Index out of bounds" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+        | Number (num, _) -> begin
+            match num with
+            | Integer i -> begin
+                try
+                    List.nth lst i
+                with
+                | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Index out of bounds" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+            end
+            | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'get' requires an Integer and a List or a String" error_msg (font_blue ^ pos.filename) pos.line font_rst)
         end
         | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'get' requires a Number and a List or a String" error_msg (font_blue ^ pos.filename) pos.line font_rst)
     end
     | [index_sexp; String (s, pos)] -> begin
         let index = soluna_eval index_sexp env in
         match index with
-        | Number (i, _) -> begin
-            try
-                let ch = String.get s i in
-                String (String.make 1 ch, pos)
-            with
-            | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Index out of bounds" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+        | Number (num, _) -> begin
+            match num with
+            | Integer i -> begin
+                try
+                    let ch = String.get s i in
+                    String (String.make 1 ch, pos)
+                with
+                | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Index out of bounds" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+            end
+            | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'get' requires an Integer and a List or a String" error_msg (font_blue ^ pos.filename) pos.line font_rst)
         end
-        | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'get' requires a Number and a List or a String" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+        | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'get' requires an Integer and a List or a String" error_msg (font_blue ^ pos.filename) pos.line font_rst)
     end
-    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'get' requires a Number and a List or a String" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'get' requires an Integer and a List or a String" error_msg (font_blue ^ pos.filename) pos.line font_rst)
 
 let soluna_null_primitive args =
     let pos = soluna_token_pos args in
@@ -977,9 +1050,9 @@ let soluna_explode_primitive env args =
             |> List.map (fun c -> String (String.make 1 c, p)) in
             List (res, pos)
         end
-        | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'explode' requires a string as argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+        | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'explode' requires a String as argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
     end
-    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'explode' requires a string as argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'explode' requires a String as argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
 
 let rec soluna_implode_primitive env args =
     let pos = soluna_token_pos args in
@@ -989,31 +1062,31 @@ let rec soluna_implode_primitive env args =
         let args_sexp = soluna_eval h env in
         match args_sexp with
         | List (h, p) -> String (String.concat "" (sexp_list_to_string_list h p), p)
-        | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'implode' requires a string list as argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+        | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'implode' requires a String list as argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
     end
-    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'implode' requires a string list as argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'implode' requires a String list as argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
 and sexp_list_to_string_list sexp_list pos =
     List.map (fun sexp ->
         match sexp with
         | String (s, _) -> s
-        | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'implode' requires a string list as argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+        | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'implode' requires a String list as argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
     ) sexp_list
 
 let soluna_length_primitive env args =
     let pos = soluna_token_pos args in
     match args with
-    | [List (h, p)] -> Number (List.length h, p)
-    | [String (h, p)] -> Number (String.length h, p)
-    | [Dict (h, p)] -> Number (Hashtbl.length h, p)
+    | [List (h, p)] -> Number (Integer (List.length h), p)
+    | [String (h, p)] -> Number (Integer (String.length h), p)
+    | [Dict (h, p)] -> Number (Integer (Hashtbl.length h), p)
     | h :: _ -> begin
         let args_sexp = soluna_eval h env in
         match args_sexp with
-        | List (h, p) -> Number (List.length h, p)
-        | String (h, p) -> Number (String.length h, p)
-        | Dict (h, p) -> Number (Hashtbl.length h, p)
-        | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'length' requires a list, a string or a dict argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+        | List (h, p) -> Number (Integer (List.length h), p)
+        | String (h, p) -> Number (Integer (String.length h), p)
+        | Dict (h, p) -> Number (Integer (Hashtbl.length h), p)
+        | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'length' requires a list, a String or a dict argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
     end
-    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'length' requires a list, a string or a dict argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'length' requires a list, a String or a dict argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
 
 let soluna_input_primitive env args =
     let pos = soluna_token_pos args in
@@ -1055,16 +1128,20 @@ let soluna_eval_primitive env args =
             in
             eval_program program
         end
-        | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'eval' requires a string as argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+        | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'eval' requires a String as argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
     end
-    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'eval' requires a string as argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'eval' requires a String as argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
 
 let soluna_type_primitive args =
     let pos = soluna_token_pos args in
     match args with
     | [sexp] -> begin
         match sexp with
-        | Number (_, _) -> String ("Number", pos)
+        | Number (num, _) -> begin 
+            match num with
+            | Float _ -> String ("Float", pos)
+            | Integer _ -> String ("Integer", pos)
+        end
         | String (_, _) -> String ("String", pos)
         | Lambda (_, _, _) -> String ("Lambda", pos)
         | Macro (_, _) -> String ("Macro", pos)
@@ -1079,43 +1156,85 @@ let soluna_type_primitive args =
 
 let soluna_int_primitive env args =
     let pos = soluna_token_pos args in
+    let to_float_value v p =
+        match v with
+        | String (s, _) -> 
+            (try Number (Integer (int_of_string s), p) 
+             with Failure _ -> Number (Float 0.0, p))
+        | Number (Integer i, _) -> 
+            Number (Integer i, p)
+        | Number (Float f, _) -> 
+            Number (Integer (int_of_float f), p)
+        | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'int' primitive requires a String, Integer or Float" 
+                error_msg (font_blue ^ pos.filename) pos.line font_rst)
+    in
     match args with
-    | [String (h, p)] -> begin
-        try
-            Number (int_of_string h, p)
-        with
-        | Failure _ -> Number (0, p)
-    end
-    | h :: _ -> begin
+    | [arg] when (match arg with String _ | Number _ -> true | _ -> false) ->
+        to_float_value arg pos
+    | h :: _ -> 
         let sexp = soluna_eval h env in
-        match sexp with
-        | String (h, p) -> begin
-            try
-                Number (int_of_string h, p)
-            with
-            | Failure _ -> Number (0, p)
-        end
-        | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'int' primitive requires a String as argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
-    end
-    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'int' primitive requires a String as argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+        to_float_value sexp pos
+    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'int' primitive requires an argument" 
+            error_msg (font_blue ^ pos.filename) pos.line font_rst)
+
+let soluna_float_primitive env args =
+    let pos = soluna_token_pos args in
+    let to_float_value v p =
+        match v with
+        | String (s, _) -> 
+            (try Number (Float (float_of_string s), p) 
+             with Failure _ -> Number (Float 0.0, p))
+        | Number (Integer i, _) -> 
+            Number (Float (float_of_int i), p)
+        | Number (Float f, _) -> 
+            Number (Float f, p)
+        | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'float' primitive requires a String, Integer or Float" 
+                error_msg (font_blue ^ pos.filename) pos.line font_rst)
+    in
+    match args with
+    | [arg] when (match arg with String _ | Number _ -> true | _ -> false) ->
+        to_float_value arg pos
+    | h :: _ -> 
+        let sexp = soluna_eval h env in
+        to_float_value sexp pos
+    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'float' primitive requires an argument" 
+            error_msg (font_blue ^ pos.filename) pos.line font_rst)
 
 let soluna_str_primitive env args =
     let pos = soluna_token_pos args in
     match args with
     | [Number (h, p)] -> begin
-        try
-            String (string_of_int h, p)
-        with
-        | Failure _ -> String ("", p)
+        match h with
+        | Integer i -> begin
+            try
+                String (string_of_int i, p)
+            with
+            | Failure _ -> String ("", p)
+        end
+        | Float f -> begin
+            try
+                String (string_of_float f, p)
+            with
+            | Failure _ -> String ("", p)
+        end
     end
     | h :: _ -> begin
         let sexp = soluna_eval h env in
         match sexp with
         | Number (h, p) -> begin
-            try
-                String (string_of_int h, p)
-            with
-            | Failure _ -> String ("", p)
+            match h with
+            | Integer i -> begin
+                try
+                    String (string_of_int i, p)
+                with
+                | Failure _ -> String ("", p)
+            end
+            | Float f -> begin
+                try
+                    String (string_of_float f, p)
+                with
+                | Failure _ -> String ("", p)
+            end
         end
         | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'str' primitive requires a Number as argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
     end
@@ -1171,18 +1290,18 @@ let soluna_write_file_primitive env args =
             with
             | e -> close_out_noerr oc; raise e
         end
-        | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'write-file' requires three arguments: filename, string, mode (:overwrite or :append)" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+        | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'write-file' requires three arguments: filename, String, mode (:overwrite or :append)" error_msg (font_blue ^ pos.filename) pos.line font_rst)
     end
-    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'write-file' requires three arguments: filename, string, mode (:overwrite or :append)" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'write-file' requires three arguments: filename, String, mode (:overwrite or :append)" error_msg (font_blue ^ pos.filename) pos.line font_rst)
 
 let soluna_dict_primitive args =
     let pos = soluna_token_pos args in
     match args with
-    | [Number (s, pos)] -> begin
+    | [Number (Integer s, pos)] -> begin
         let new_map = Hashtbl.create s in
         Dict (new_map, pos)
     end
-    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'dict' requires a size argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'dict' requires an Integer as size argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
 
 let soluna_dict_set_primitive args =
     let pos = soluna_token_pos args in
@@ -1246,16 +1365,16 @@ let soluna_dict_contains_primitive args =
 
 let soluna_init_env () : env =
     let env = Hashtbl.create 20 in 
-    Hashtbl.replace env "+" (Primitive (soluna_arithmetic_primitive (+))); 
-    Hashtbl.replace env "-" (Primitive (soluna_arithmetic_primitive (-))); 
-    Hashtbl.replace env "*" (Primitive (soluna_arithmetic_primitive ( * )));
-    Hashtbl.replace env "/" (Primitive (soluna_arithmetic_primitive (/)));
-    Hashtbl.replace env "<" (Primitive (soluna_comparaison_primtive (<)));
-    Hashtbl.replace env ">" (Primitive (soluna_comparaison_primtive (>)));
-    Hashtbl.replace env "=" (Primitive (soluna_comparaison_primtive (=)));
-    Hashtbl.replace env "!=" (Primitive (soluna_comparaison_primtive (!=)));
-    Hashtbl.replace env ">=" (Primitive (soluna_comparaison_primtive (>=)));
-    Hashtbl.replace env "<=" (Primitive (soluna_comparaison_primtive (<=)));
+    Hashtbl.replace env "+" (Primitive (soluna_arithmetic_primitive (+) (+.))); 
+    Hashtbl.replace env "-" (Primitive (soluna_arithmetic_primitive (-) (-.))); 
+    Hashtbl.replace env "*" (Primitive (soluna_arithmetic_primitive ( * ) ( *. )));
+    Hashtbl.replace env "/" (Primitive (soluna_arithmetic_primitive ~force_float:true (/) (/.)));
+    Hashtbl.replace env "<" (Primitive (soluna_comparaison_primitive (Lt)));
+    Hashtbl.replace env ">" (Primitive (soluna_comparaison_primitive (Gt)));
+    Hashtbl.replace env "=" (Primitive (soluna_comparaison_primitive (Eq)));
+    Hashtbl.replace env "!=" (Primitive (soluna_comparaison_primitive (Neq)));
+    Hashtbl.replace env ">=" (Primitive (soluna_comparaison_primitive (Geq)));
+    Hashtbl.replace env "<=" (Primitive (soluna_comparaison_primitive (Leq)));
     Hashtbl.replace env "not" (Primitive soluna_not_primitive);
     Hashtbl.replace env "mod" (Primitive soluna_modulo_primitive); 
     Hashtbl.replace env "write" (Primitive (soluna_write_primitive env false));
@@ -1280,6 +1399,7 @@ let soluna_init_env () : env =
     Hashtbl.replace env "eval" (Primitive (soluna_eval_primitive env));
     Hashtbl.replace env "type" (Primitive soluna_type_primitive);
     Hashtbl.replace env "int" (Primitive (soluna_int_primitive env));
+    Hashtbl.replace env "float" (Primitive (soluna_float_primitive env));
     Hashtbl.replace env "str" (Primitive (soluna_str_primitive env));
     Hashtbl.replace env "read-file" (Primitive (soluna_read_file_primitive env));
     Hashtbl.replace env "write-file" (Primitive (soluna_write_file_primitive env));

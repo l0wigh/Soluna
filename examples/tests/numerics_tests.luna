@@ -1,0 +1,113 @@
+;; ========================================================
+;; SOLUNA FULL REGRESSION TEST SUITE (NUMERIC & LOGIC)
+;; ========================================================
+
+(defmacro assert (label actual expected)
+    `(do
+        (write ,label)
+        (if (= ,actual ,expected) (writeln "Passed ]") (writeln "Failed ]"))))
+    
+
+
+(writeln "[=====================================]")
+
+;; --- T1: Basic Arithmetic & Comparison ---
+(do
+    (defvar res1 (+ (* 5 5) 2))
+    (assert "[ T1  : Arithmetic          -> " res1 27))
+
+;; --- T2: Types and Conversion ---
+(do
+    (defvar res2 (type (int "123")))
+    (assert "[ T2  : Type Conv           -> " res2 "Integer"))
+
+;; --- T3: Lists Manipulation ---
+(do
+    (defvar my-list (cons 1 (list 2 3)))
+    (defvar res3 (fst (rst my-list)))
+    (assert "[ T3  : List Access         -> " res3 2))
+
+;; --- T4: Functions & Conditionals ---
+(function is-even? (n) (if (= (mod n 2) 0) true false))
+(do
+    (assert "[ T4  : Function Evn        -> " (is-even? 42) true)
+    (assert "[ T4  : Function Odd        -> " (is-even? 7) false))
+
+;; --- T5: Let* (Sequential Bindings) ---
+(do
+    (defvar res5 (let* ((a 10) (b (+ a 5))) (- b a)))
+    (assert "[ T5  : Let* Scoping        -> " res5 5))
+
+;; --- T6: Macros (Expansion) ---
+(defmacro unless (cond body) `(if (not ,cond) ,body "SKIP"))
+(do
+    (defvar res6 (unless false "OK"))
+    (assert "[ T6  : Macro Expansion     -> " res6 "OK"))
+
+;; --- T7: Pattern Matching ---
+(do
+    (defvar test-data (list (list 10 20) (list 30 40)))
+    (defvar res7 (match test-data
+                  (((a b) (c d)) (+ a d))
+                  (default 0)))
+    (assert "[ T7  : Pattern Match       -> " res7 50))
+
+;; --- T8: Reduce ---
+(do
+    (defvar res8 (reduce + 10 (list 1 2 3)))
+    (assert "[ T8  : Reduce Logic        -> " res8 16))
+
+;; --- T9: Variadic Arguments (&rest) ---
+(function sum-all (&rest nums) (reduce + 0 nums))
+(do
+    (assert "[ T9  : &rest Func          -> " (sum-all 10 20 30 40) 100))
+
+;; --- T10: Splicing ---
+(defmacro multi-do (first &rest others) `(do ,first ,@others))
+(do (defvar res10
+     (multi-do 
+         (defvar x (list 1 2))
+         (defvar y (list 3 4)) 
+         (defvar x (concat x y))
+         (reduce + 0 x)))
+    
+ (assert "[ T10 : Macro splicing      -> " res10 10))
+
+;; --- T11: Float Promotion & Downcast ---
+(do
+    (assert "[ T11 : Float Promotion     -> " (+ 10 0.5) 10.5)
+    (assert "[ T11 : Auto-Downcast       -> " (+ 1.5 0.5) 2))
+
+;; --- T12: Python-Style Division ---
+(do
+    (assert "[ T12 : Div Exact (Int)     -> " (/ 10 2) 5)
+    (assert "[ T12 : Div Precise (Float) -> " (/ 5 2) 2.5)
+    (assert "[ T12 : Div Nested          -> " (/ (/ 100 2) 2) 25))
+
+;; --- T13: Mixed Comparisons (Epsilon) ---
+(do
+    (assert "[ T13 : Mixed Equality      -> " (= 1 1.0) true)
+    (assert "[ T13 : Epsilon Tolerance   -> " (!= 1.0000000000001 1) false))
+
+;; --- T14: New Conversion Primitives ---
+(do
+    (assert "[ T14 : Float from String   -> " (float "3.14") 3.14)
+    (assert "[ T14 : Float from Int      -> " (float 42) 42.0)
+    (assert "[ T14 : Int from Float      -> " (int 9.99) 9))
+
+;; --- T15: Newton-Raphson Stability ---
+(function sqrt (x)
+  (do
+     (defvar rt 1.0)
+     (defvar ort 0.0)
+     (while (!= ort rt)
+       (do
+         (defvar ort rt)
+         (defvar rt (/ (+ rt (/ x rt)) 2.0))))
+     rt))
+
+(do
+    (assert "[ T15 : Sqrt Precise (2)    -> " (sqrt 2) 1.41421356237)
+    (assert "[ T15 : Sqrt Perfect (25)   -> " (sqrt 25) 5))
+
+(writeln "[=====================================]")

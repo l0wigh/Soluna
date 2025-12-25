@@ -378,20 +378,21 @@ This section lists all built-in functions available by default, with short usage
 
 ### 5.1 Arithmetic & Logic
 
-| Function    | Description           | Example                |
-| ----------- | --------------------- | ---------------------- |
-| `+`         | Addition              | `(+ 1 2 3)` → `6`      |
-| `-`         | Subtraction           | `(- 10 3)` → `7`       |
-| `*`         | Multiplication        | `(* 2 4)` → `8`        |
-| `/`         | Division              | `(/ 8 2)` → `4`        |
-| `mod`       | Modulo                | `(mod 10 3)` → `1`     |
-| `< > <= >=` | Comparisons           | `(< 1 2)` → `true`     |
-| `=`         | Equality              | `(= 3 3)` → `true`     |
-| `!=`        | Inequality            | `(!= 3 4)` → `true`    |
-| `int`       | String → int          | `(int "42")` → `42`    |
-| `str`       | Value → string        | `(str 42)` → `"42"`    |
-| `str`       | Invert the evaluation | `(not true)` → `false` |
-| `type`      | Type name             | `(type 42)` → `"int"`  |
+| Function    | Description                | Example                     |
+| ----------- | -------------------------- | --------------------------- |
+| `+`         | Addition                   | `(+ 1 2 3)` → `6`           |
+| `-`         | Subtraction                | `(- 10 3)` → `7`            |
+| `*`         | Multiplication             | `(* 2 4)` → `8`             |
+| `/`         | Division                   | `(/ 8 2)` → `4`             |
+| `mod`       | Modulo                     | `(mod 10 3)` → `1`          |
+| `< > <= >=` | Comparisons                | `(< 1 2)` → `true`          |
+| `=`         | Equality                   | `(= 3 3)` → `true`          |
+| `!=`        | Inequality                 | `(!= 3 4)` → `true`         |
+| `int`       | String and Float → Integer | `(int "42")` → `42`         |
+| `float`     | String and Int   → Float   | `(float "42.22")` → `42.22` |
+| `str`       | Value → string             | `(str 42)` → `"42"`         |
+| `not`       | Invert the evaluation      | `(not true)` → `false`      |
+| `type`      | Type name                  | `(type 42)` → `"int"`       |
 
 ---
 
