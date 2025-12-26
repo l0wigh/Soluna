@@ -1,4 +1,4 @@
-let soluna_version = "0.9.0"
+let soluna_version = "0.9.1"
 type soluna_position = { filename: string; line: int; }
 type cmp_op = Eq | Neq | Lt | Gt | Leq | Geq
 type number =
@@ -1420,15 +1420,16 @@ let soluna_init_env () : env =
 let rec soluna_bundler_get_full_source filename =
     let content = soluna_read_file filename in
     let list = String.split_on_char '\n' content in
+    let curr_dir = Filename.dirname filename in
     let final = List.map (fun s ->
         let prepared = soluna_bundler_remove_spaces s in
         if String.starts_with ~prefix:"(include\"" prepared then
             let split = String.split_on_char '"' prepared in
             let include_filename = List.nth split 1 in
-            print_string ("Invoking " ^ font_green ^ include_filename ^ font_rst ^ "\n");
+            let full_path = Filename.concat curr_dir include_filename in
+            print_string ("Summoning " ^ font_green ^ include_filename ^ font_rst ^ "\r");
             flush stdout; 
-            (* print_string ("Invoking " ^ font_green ^ include_filename ^ font_rst ^ "\r"); *)
-            soluna_bundler_get_full_source include_filename
+            soluna_bundler_get_full_source full_path
         else s
     ) list in
     final |> String.concat "\n"
@@ -1457,9 +1458,9 @@ let soluna_bundler entry name =
     let status = Sys.command (Printf.sprintf "ocamlopt -o %s %s" output_name tmp_file) in
     let _ = Sys.command "rm bundle_tmp.*" in
     if status = 0 then
-        print_endline ((font_green ^ output_name) ^ font_rst ^ " successfully invoked")
+        print_endline ("\n" ^ (font_green ^ output_name) ^ font_rst ^ " successfully invoked")
     else
-        print_endline (font_red ^ "Error" ^ font_rst ^ " when invoking " ^ name)
+        print_endline ("\n" ^ font_red ^ "Error" ^ font_rst ^ " when invoking " ^ name)
 
 let soluna_new_project foldername =
     try
