@@ -1,4 +1,4 @@
-# Soluna 0.8.1
+# Soluna 0.9.0
 
 <p align="center" width="100%">
     <img src="https://raw.githubusercontent.com/l0wigh/Soluna/refs/heads/master/logo_alchemy.gif">
@@ -45,6 +45,10 @@ Soluna is equipped with a bundler. The way it works is simply by injecting your 
 The executable is in fact the Soluna interpreter running only your source code. It's far from perfect but will do the trick to add some portability.
 
 For the bundler to work you need to have OCaml tools installed (look at the "Build and run" section to know how to install everything).
+
+## Soluna Projects
+
+Soluna have some options that let you handle a project in a more structured way. To learn more about that look [here](https://github.com/l0wigh/Soluna/blob/master/PROJECTS.md).
 
 ## What's to come ?
 

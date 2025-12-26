@@ -1,4 +1,4 @@
-let soluna_version = "0.8.1"
+let soluna_version = "0.9.0"
 type soluna_position = { filename: string; line: int; }
 type cmp_op = Eq | Neq | Lt | Gt | Leq | Geq
 type number =
@@ -46,6 +46,7 @@ let soluna_print_help () =
   Printf.printf "  %s%-10s%s Evaluate a string of code directly\n" help_green "eval" help_rst;
   Printf.printf "  %s%-10s%s Create a standalone executable from a script\n" help_green "bundle" help_rst;
   Printf.printf "  %s%-10s%s Create a project folder with default structure\n" help_green "new" help_rst;
+  Printf.printf "  %s%-10s%s Build the project inside the folder\n" help_green "build" help_rst;
   Printf.printf "  %s%-10s%s Show current version\n" help_green "version" help_rst;
   Printf.printf "  %s%-10s%s Show this help message\n\n" help_green "help" help_rst;
   Printf.printf "%sEXAMPLES:%s\n" help_yellow help_rst;
@@ -53,6 +54,8 @@ let soluna_print_help () =
   Printf.printf "  soluna script.luna\n";
   Printf.printf "  soluna eval \"(writeln 'hi')\"\n";
   Printf.printf "  soluna bundle main.luna\n";
+  Printf.printf "  soluna new soluna-project\n";
+  Printf.printf "  soluna build\n";
   exit 0
 
 let soluna_parse_atom ptoken =
@@ -1433,8 +1436,8 @@ and soluna_bundler_remove_spaces s =
     let list = String.to_seq s |> List.of_seq |> List.filter (fun c -> if c == ' ' then false else true) in
     List.to_seq list |> String.of_seq
 
-let soluna_bundler filename =
-    let data = soluna_bundler_get_full_source filename in
+let soluna_bundler entry name =
+    let data = soluna_bundler_get_full_source entry in
     let template = Printf.sprintf
          "module Bundler = struct let bundled_code = {script_content|%s|script_content} let code = \"\"\nlet is_bundled = true end\n\
          %s" data Bundler.bundled_code
@@ -1444,24 +1447,94 @@ let soluna_bundler filename =
     output_string oc template;
     close_out oc;
 
-    let output_name = Filename.chop_extension filename in
-    let output_name = String.split_on_char '/' output_name in
-    let output_name = List.nth (List.rev output_name) 0 in
+    let output_name = if String.compare entry name = 0 then
+        let output_name = Filename.chop_extension entry in
+        let output_name = String.split_on_char '/' output_name in
+        List.nth (List.rev output_name) 0
+    else
+        name
+    in
     let status = Sys.command (Printf.sprintf "ocamlopt -o %s %s" output_name tmp_file) in
     let _ = Sys.command "rm bundle_tmp.*" in
     if status = 0 then
         print_endline ((font_green ^ output_name) ^ font_rst ^ " successfully invoked")
     else
-        print_endline (font_red ^ "Error" ^ font_rst ^ " when invoking " ^ filename)
+        print_endline (font_red ^ "Error" ^ font_rst ^ " when invoking " ^ name)
 
 let soluna_new_project foldername =
     try
-        let command = Printf.sprintf "mkdir -p %s/libs; echo '(writeln \"Hello World !\")' > %s/main.luna" foldername foldername in
+        let command = Printf.sprintf "mkdir -p %s/libs; echo '(writeln \"Hello World !\")' > %s/main.luna; echo 'name:%s\nentry:main.luna\nversion:0.0.1' > %s/project.sol" foldername foldername foldername foldername in
         match Sys.command command with
         | 0 -> print_endline (font_green ^ foldername ^ font_rst ^ " project created")
         | _ -> failwith (Printf.sprintf "An error happend while creating the project %s" (font_green ^ foldername ^ font_rst))
     with
     | _ -> failwith (Printf.sprintf "An error happend while creating the project %s" (font_green ^ foldername ^ font_rst))
+
+
+let soluna_add_library libname =
+    if Sys.file_exists "project.sol" then begin
+        let url = "https://raw.githubusercontent.com/l0wigh/soluna-libs/refs/heads/master/packages.sol" in
+        let temp_file = Filename.temp_file ".soluna_add" ".html" in
+        let cmd = Printf.sprintf "curl -s -o %s -f %s" temp_file url in
+        let exit_code = Sys.command cmd in
+        if exit_code = 0 then begin
+                let ic = open_in temp_file in
+                let content = really_input_string ic (in_channel_length ic) in
+                close_in ic;
+                let content = String.split_on_char '\n' content in
+                let found = false in
+                List.iter (fun s -> begin
+                    if found then ()
+                    else match String.split_on_char ':' s with
+                    | lib :: files when (String.compare lib libname) = 0 -> begin
+                        let comma_split = String.split_on_char ',' (List.nth files 0) in
+                        List.iter (fun c ->
+                            let destination = "libs/" ^ lib in
+                            let mkdir_cmd = Printf.sprintf "mkdir -p %s" destination in
+                            let url = Printf.sprintf "https://raw.githubusercontent.com/l0wigh/soluna-libs/refs/heads/master/%s/%s" lib c in
+                            let curl_cmd = Printf.sprintf "curl -s -o %s/%s -f %s" destination c url in
+                            let _ = Sys.command mkdir_cmd in
+                            let curl_cmd = Sys.command curl_cmd in
+                            if curl_cmd != 0 then begin
+                                print_endline ("Error when summoning " ^ font_green ^ lib ^ font_rst);
+                                let _ = Sys.command ("rm -rf " ^ destination) in
+                                exit 1
+                            end
+                        ) comma_split;
+                        print_endline (font_green ^ lib ^ font_rst ^ " has been successfully summoned");
+                        exit 0
+                    end
+                    | _ -> ()
+                end) content;
+            Sys.remove temp_file;
+        end else begin
+            print_endline ""
+        end
+    end
+    else print_endline "Not a Soluna project";
+    print_endline (font_green ^ libname ^ font_rst ^ " not found")
+
+let soluna_build_project () =
+    if Sys.file_exists "project.sol" then begin
+        let ic = open_in "project.sol" in
+        let content = really_input_string ic (in_channel_length ic) |> String.split_on_char '\n' in
+        let rec find_data v c =
+            match c with
+            | h :: t -> begin
+                let splitted = String.split_on_char ':' h in
+                if String.compare (List.nth splitted 0) v = 0 then
+                    List.nth splitted 1
+                else
+                    find_data v t
+            end
+            | [] -> "no_name"
+        in
+        let name = find_data "name" content in
+        let entry = find_data "entry" content in
+        soluna_bundler entry name
+    end
+    else print_endline "Not a Soluna project";
+    exit 0
 
 let () =
     let global_env = soluna_init_env () in
@@ -1482,8 +1555,12 @@ let () =
             let parsed_sexp = match (Array.to_list Sys.argv) with
                 | _ :: "help" :: _ -> soluna_print_help ()
                 | _ :: "version" :: _ -> Printf.printf "Soluna %s\n" (font_blue ^ soluna_version ^ font_rst); exit 0
-                | _ :: "bundle" :: filename :: _ -> soluna_bundler filename; exit 0
+                | _ :: "bundle" :: filename :: _ -> soluna_bundler filename filename; exit 0
                 | _ :: "new" :: foldername :: _ -> soluna_new_project foldername; exit 0
+                | _ :: "new" :: [] -> print_endline "You need to pass a name for your new project"; exit 0
+                | _ :: "add" :: libname :: _ -> soluna_add_library libname; exit 0
+                | _ :: "add" :: [] -> print_endline "You need to pass the name of a library"; exit 0
+                | _ :: "build" :: _ -> soluna_build_project ()
                 | _ :: "eval" :: code :: extra -> begin
                     let data = code |> soluna_quasiquote_shebang_prep |> String.to_seq |> List.of_seq in
                     let args_list = List.map (fun s -> String (s, unknown_pos)) extra in
