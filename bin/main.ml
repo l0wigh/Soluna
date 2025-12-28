@@ -1,4 +1,4 @@
-let soluna_version = "0.9.1"
+let soluna_version = "0.9.2"
 type soluna_position = { filename: string; line: int; }
 type cmp_op = Eq | Neq | Lt | Gt | Leq | Geq
 type number =
@@ -1164,7 +1164,7 @@ let soluna_int_primitive env args =
         match v with
         | String (s, _) -> 
             (try Number (Integer (int_of_string s), p) 
-             with Failure _ -> Number (Float 0.0, p))
+             with Failure _ -> Number (Integer 0, p))
         | Number (Integer i, _) -> 
             Number (Integer i, p)
         | Number (Float f, _) -> 
