@@ -1,4 +1,4 @@
-# Soluna 0.9.2
+# Soluna 0.10.0
 
 <p align="center" width="100%">
     <img src="https://raw.githubusercontent.com/l0wigh/Soluna/refs/heads/master/logo_alchemy.gif">

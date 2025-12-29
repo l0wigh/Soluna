@@ -1,4 +1,4 @@
-let soluna_version = "0.9.2"
+let soluna_version = "0.10.0"
 type soluna_position = { filename: string; line: int; }
 type cmp_op = Eq | Neq | Lt | Gt | Leq | Geq
 type number =
@@ -1323,9 +1323,9 @@ let soluna_dict_get_primitive args =
         try
             Hashtbl.find h key
         with Not_found ->
-            failwith (Printf.sprintf "[%s] %s:%d%s -> Key '%s' not found in dictionnary" error_msg (font_blue ^ pos.filename) pos.line key font_rst)
+            failwith (Printf.sprintf "[%s] %s:%d%s -> Key '%s' not found in Dict" error_msg (font_blue ^ pos.filename) pos.line key font_rst)
     end
-    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'dict-get' requires a dictionnary and a key" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'dict-get' requires a Dict and a key" error_msg (font_blue ^ pos.filename) pos.line font_rst)
 
 let soluna_dict_ref_primitive args =
     let pos = soluna_token_pos args in
@@ -1335,19 +1335,19 @@ let soluna_dict_ref_primitive args =
             Hashtbl.find h key
         with Not_found -> default
     end
-    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'dict-ref' requires a dictionnary, a key and a default value" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'dict-ref' requires a Dict, a key and a default value" error_msg (font_blue ^ pos.filename) pos.line font_rst)
 
 let soluna_dict_keys_primitive args =
     let pos = soluna_token_pos args in
     match args with
     | [Dict (h, p)] -> List (List.rev (Hashtbl.fold (fun k _ acc -> String (k, p) :: acc) h []), p)
-    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'dict-keys' requires a valid dictionnary" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'dict-keys' requires a valid Dict" error_msg (font_blue ^ pos.filename) pos.line font_rst)
 
 let soluna_dict_values_primitive args =
     let pos = soluna_token_pos args in
     match args with
     | [Dict (h, p)] -> List (List.rev (Hashtbl.fold (fun _ v acc -> v :: acc) h []), p)
-    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'dict-values' requires a valid dictionnary" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'dict-values' requires a valid Dict" error_msg (font_blue ^ pos.filename) pos.line font_rst)
 
 let soluna_dict_remove_primitive args =
     let pos = soluna_token_pos args in
@@ -1356,7 +1356,7 @@ let soluna_dict_remove_primitive args =
         Hashtbl.remove h key;
         List ([], p)
     end
-    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'dict-remove' requires a dictionnary and a key as arguments" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'dict-remove' requires a Dict and a key as arguments" error_msg (font_blue ^ pos.filename) pos.line font_rst)
 
 let soluna_dict_contains_primitive args =
     let pos = soluna_token_pos args in
@@ -1365,7 +1365,27 @@ let soluna_dict_contains_primitive args =
         let found = Hashtbl.mem h key in
         Boolean (found, p)
     end
-    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'dict-contains' requires a dictionnary and a key as arguments" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'dict-contains' requires a Dict and a key as arguments" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+
+(* Might be a dirty way to do it, but I don't want extra libs for now *)
+let soluna_cmd_primitive args =
+    let pos = soluna_token_pos args in
+    match args with
+    | [sexp] -> begin
+        match sexp with
+        | String (c, p) -> begin
+            let tmp = Filename.temp_file ".soluna" ".txt" in
+            let _ = Sys.command (c ^ " > " ^ Filename.quote tmp) in
+            let ic = open_in tmp in
+            let n = in_channel_length ic in
+            let s = really_input_string ic n in
+            close_in ic;
+            Sys.remove tmp;
+            String (s, p)
+        end
+        | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'cmd' requires a String as arguments" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+    end
+    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'cmd' requires a String as arguments" error_msg (font_blue ^ pos.filename) pos.line font_rst)
 
 let soluna_init_env () : env =
     let env = Hashtbl.create 20 in 
@@ -1415,6 +1435,7 @@ let soluna_init_env () : env =
     Hashtbl.replace env "dict-values" (Primitive soluna_dict_values_primitive);
     Hashtbl.replace env "dict-remove" (Primitive soluna_dict_remove_primitive);
     Hashtbl.replace env "dict-contains" (Primitive soluna_dict_contains_primitive);
+    Hashtbl.replace env "cmd" (Primitive soluna_cmd_primitive);
     env
 
 let rec soluna_bundler_get_full_source filename =

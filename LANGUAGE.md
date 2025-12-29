@@ -456,6 +456,7 @@ This section lists all built-in functions available by default, with short usage
 | `eval`       | Evaluate code string  | `(eval "(+ 1 2)")`                     |
 | `read-file`  | Read file             | `(read-file "a.txt")`                  |
 | `write-file` | Write file            | `(write-file "a.txt" "hi" :overwrite)` |
+| `cmd`        | Execute shell command | `(cmd "ls -h")`                        |
 
 ---
 
