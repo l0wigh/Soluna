@@ -1448,7 +1448,7 @@ let rec soluna_bundler_get_full_source filename =
             let split = String.split_on_char '"' prepared in
             let include_filename = List.nth split 1 in
             let full_path = Filename.concat curr_dir include_filename in
-            print_string ("Summoning " ^ font_green ^ include_filename ^ font_rst ^ "\r");
+            print_endline ("Summoning " ^ font_green ^ include_filename ^ font_rst);
             flush stdout; 
             soluna_bundler_get_full_source full_path
         else s
