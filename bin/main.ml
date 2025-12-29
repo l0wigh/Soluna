@@ -1,4 +1,4 @@
-let soluna_version = "0.10.0"
+let soluna_version = "0.10.1"
 type soluna_position = { filename: string; line: int; }
 type cmp_op = Eq | Neq | Lt | Gt | Leq | Geq
 type number =
@@ -1513,7 +1513,7 @@ let soluna_add_library libname =
                         List.iter (fun c ->
                             let destination = "libs/" ^ lib in
                             let mkdir_cmd = Printf.sprintf "mkdir -p %s" destination in
-                            let url = Printf.sprintf "https://raw.githubusercontent.com/l0wigh/soluna-libs/refs/heads/master/%s/%s" lib c in
+                            let url = Printf.sprintf "https://raw.githubusercontent.com/l0wigh/soluna-libs/refs/heads/master/libs/%s/%s" lib c in
                             let curl_cmd = Printf.sprintf "curl -s -o %s/%s -f %s" destination c url in
                             let _ = Sys.command mkdir_cmd in
                             let curl_cmd = Sys.command curl_cmd in
