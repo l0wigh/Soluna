@@ -1479,9 +1479,9 @@ let soluna_bundler entry name =
     let status = Sys.command (Printf.sprintf "ocamlopt -o %s %s" output_name tmp_file) in
     let _ = Sys.command "rm bundle_tmp.*" in
     if status = 0 then
-        print_endline ("\n" ^ (font_green ^ output_name) ^ font_rst ^ " successfully invoked")
+        print_endline ((font_green ^ output_name) ^ font_rst ^ " successfully invoked")
     else
-        print_endline ("\n" ^ font_red ^ "Error" ^ font_rst ^ " when invoking " ^ name)
+        print_endline (font_red ^ "Error" ^ font_rst ^ " when invoking " ^ name)
 
 let soluna_new_project foldername =
     try
