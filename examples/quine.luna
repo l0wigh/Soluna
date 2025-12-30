@@ -1,0 +1,2 @@
+(write-file "quine.luna" (read-file "quine.luna") :overwrite)
+(writeln "Nothing to see here, quine has been executed.")
