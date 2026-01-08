@@ -46,6 +46,7 @@ let soluna_print_help () =
   Printf.printf "  %s%-10s%s Evaluate a string of code directly\n" help_green "eval" help_rst;
   Printf.printf "  %s%-10s%s Create a standalone executable from a script\n" help_green "bundle" help_rst;
   Printf.printf "  %s%-10s%s Create a project folder with default structure\n" help_green "new" help_rst;
+  Printf.printf "  %s%-10s%s Add a library to a project folder\n" help_green "add" help_rst;
   Printf.printf "  %s%-10s%s Build the project inside the folder\n" help_green "build" help_rst;
   Printf.printf "  %s%-10s%s Show current version\n" help_green "version" help_rst;
   Printf.printf "  %s%-10s%s Show this help message\n\n" help_green "help" help_rst;
@@ -55,6 +56,7 @@ let soluna_print_help () =
   Printf.printf "  soluna eval \"(writeln 'hi')\"\n";
   Printf.printf "  soluna bundle main.luna\n";
   Printf.printf "  soluna new soluna-project\n";
+  Printf.printf "  soluna add math\n";
   Printf.printf "  soluna build\n";
   exit 0
 
