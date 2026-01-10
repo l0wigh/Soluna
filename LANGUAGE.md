@@ -393,6 +393,12 @@ This section lists all built-in functions available by default, with short usage
 | `< > <= >=` | Comparisons                | `(< 1 2)` → `true`          |
 | `=`         | Equality                   | `(= 3 3)` → `true`          |
 | `!=`        | Inequality                 | `(!= 3 4)` → `true`         |
+| `and`       | Logical and                | `(and 5 3)` → `1`           |
+| `or`        | Logical or                 | `(or 4 2)` → `6`            |
+| `xor`       | Logical xor                | `(xor 7 3)` → `4`           |
+| `nand`      | Logical nand               | `(nand 1 1)` → `-2`         |
+| `nor`       | Logical nor                | `(nor 0 0)` → `-1`           |
+| `xnor`      | Logical xnor               | `(xnor 7 3)` → `-1`          |
 | `int`       | String and Float → Integer | `(int "42")` → `42`         |
 | `float`     | String and Int   → Float   | `(float "42.22")` → `42.22` |
 | `str`       | Value → string             | `(str 42)` → `"42"`         |

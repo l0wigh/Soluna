@@ -1,4 +1,4 @@
-let soluna_version = "0.10.1"
+let soluna_version = "0.10.2"
 type soluna_position = { filename: string; line: int; }
 type cmp_op = Eq | Neq | Lt | Gt | Leq | Geq
 type number =
@@ -1385,9 +1385,51 @@ let soluna_cmd_primitive args =
             Sys.remove tmp;
             String (s, p)
         end
-        | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'cmd' requires a String as arguments" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+        | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'cmd' requires a String as argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
     end
-    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'cmd' requires a String as arguments" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'cmd' requires a String as argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+
+let soluna_exit_primitive args =
+    let pos = soluna_token_pos args in
+    match args with
+    | [sexp] -> begin
+        match sexp with
+        | Number (n, _) -> begin
+            match n with
+            | Integer i -> exit i
+            | Float f -> exit (int_of_float f)
+        end
+        | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'exit' requires a Integer as argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+    end
+    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'exit' requires a Integer as argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+
+let soluna_logic_primitive func args =
+    let pos = soluna_token_pos args in
+    match args with
+    | [sexpa; sexpb] -> begin
+        match (sexpa, sexpb) with
+        | (Number (a, _), Number (b, _)) -> begin
+            match (a, b) with
+            | (Integer x, Integer y) -> Number (Integer (func x y), pos)
+            | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'and' requires two Integers as arguments" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+        end
+        | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'and' requires two Integers as arguments" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+    end
+    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'and' requires two Integers as arguments" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+
+let soluna_logic_not_primitive func args =
+    let pos = soluna_token_pos args in
+    match args with
+    | [sexpa; sexpb] -> begin
+        match (sexpa, sexpb) with
+        | (Number (a, _), Number (b, _)) -> begin
+            match (a, b) with
+            | (Integer x, Integer y) -> Number (Integer (lnot (func x y)), pos)
+            | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Logic primtives requires two Integers as arguments" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+        end
+        | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Logic primtives requires two Integers as arguments" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+    end
+    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Logic primtives requires two Integers as arguments" error_msg (font_blue ^ pos.filename) pos.line font_rst)
 
 let soluna_init_env () : env =
     let env = Hashtbl.create 20 in 
@@ -1438,6 +1480,13 @@ let soluna_init_env () : env =
     Hashtbl.replace env "dict-remove" (Primitive soluna_dict_remove_primitive);
     Hashtbl.replace env "dict-contains" (Primitive soluna_dict_contains_primitive);
     Hashtbl.replace env "cmd" (Primitive soluna_cmd_primitive);
+    Hashtbl.replace env "exit" (Primitive soluna_exit_primitive);
+    Hashtbl.replace env "and" (Primitive (soluna_logic_primitive (land))); 
+    Hashtbl.replace env "or" (Primitive (soluna_logic_primitive (lor))); 
+    Hashtbl.replace env "xor" (Primitive (soluna_logic_primitive (lxor))); 
+    Hashtbl.replace env "nand" (Primitive (soluna_logic_not_primitive (land))); 
+    Hashtbl.replace env "nor" (Primitive (soluna_logic_not_primitive (lor))); 
+    Hashtbl.replace env "xnor" (Primitive (soluna_logic_not_primitive (lxor))); 
     env
 
 let rec soluna_bundler_get_full_source filename =
