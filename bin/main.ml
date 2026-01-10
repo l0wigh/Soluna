@@ -1411,11 +1411,11 @@ let soluna_logic_primitive func args =
         | (Number (a, _), Number (b, _)) -> begin
             match (a, b) with
             | (Integer x, Integer y) -> Number (Integer (func x y), pos)
-            | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'and' requires two Integers as arguments" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+            | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Logical operations requires two Integers as arguments" error_msg (font_blue ^ pos.filename) pos.line font_rst)
         end
-        | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'and' requires two Integers as arguments" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+        | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Logical operations requires two Integers as arguments" error_msg (font_blue ^ pos.filename) pos.line font_rst)
     end
-    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'and' requires two Integers as arguments" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Logical operations requires two Integers as arguments" error_msg (font_blue ^ pos.filename) pos.line font_rst)
 
 let soluna_logic_not_primitive func args =
     let pos = soluna_token_pos args in
@@ -1425,11 +1425,11 @@ let soluna_logic_not_primitive func args =
         | (Number (a, _), Number (b, _)) -> begin
             match (a, b) with
             | (Integer x, Integer y) -> Number (Integer (lnot (func x y)), pos)
-            | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Logic primtives requires two Integers as arguments" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+            | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Logical operations requires two Integers as arguments" error_msg (font_blue ^ pos.filename) pos.line font_rst)
         end
-        | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Logic primtives requires two Integers as arguments" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+        | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Logical operations requires two Integers as arguments" error_msg (font_blue ^ pos.filename) pos.line font_rst)
     end
-    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Logic primtives requires two Integers as arguments" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Logical operations requires two Integers as arguments" error_msg (font_blue ^ pos.filename) pos.line font_rst)
 
 let soluna_init_env () : env =
     let env = Hashtbl.create 20 in 

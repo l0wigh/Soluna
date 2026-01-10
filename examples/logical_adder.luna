@@ -1,0 +1,60 @@
+;; This is a very complex way to do additions
+;; It uses logical primitives to work
+
+(function to-bit (n)
+  (if (= n 0) 0 1))
+
+(function power (base exp)
+  (if (= exp 0)
+      1
+      (* base (power base (- exp 1)))))
+
+(function div-int (a b)
+  (- (/ a b) (mod (/ a b) 1)))
+
+(function get-bit (n pos)
+  (mod (div-int n (power 2 pos)) 2))
+
+(function has-bit (n pos)
+  (= (get-bit n pos) 1))
+
+(function set-bit (n pos)
+  (if (has-bit n pos)
+      n
+      (+ n (power 2 pos))))
+
+(function full-adder (a b cin)
+  (do
+    (defvar sum1 (xor a b))
+    (defvar carry1 (and a b))
+    (defvar sum (xor sum1 cin))
+    (defvar carry2 (and sum1 cin))
+    (defvar cout (or carry1 carry2))
+    (list sum cout)))
+
+(function add-integers (a b)
+  (do
+    (defvar max-bits 32)
+    
+    (function add-loop (pos carry result)
+      (if (>= pos max-bits)
+          result
+          (do
+            (defvar bit-a (get-bit a pos))
+            (defvar bit-b (get-bit b pos))
+            (defvar fa-result (full-adder bit-a bit-b carry))
+            (defvar sum-bit (get 0 fa-result))
+            (defvar new-carry (get 1 fa-result))
+            (defvar new-result 
+              (if (= sum-bit 1)
+                  (set-bit result pos)
+                  result))
+            (add-loop (+ pos 1) new-carry new-result))))
+    
+    (defvar result (add-loop 0 0 0))
+    (writeln (concat (str a) " + " (str b) " = " (str result)))
+    result))
+
+(add-integers 5 3)
+(add-integers 42 58)
+(add-integers 123 456)
