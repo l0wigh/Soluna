@@ -803,6 +803,7 @@ let soluna_write_primitive env mode args =
             | String (s, _) -> soluna_write_string s
             | _ -> soluna_string_of_sexp sexp in
         if mode then Printf.printf "%s%s%s\n" color output user_reset else Printf.printf "%s%s%s" color output user_reset;
+        flush stdout;
         sexp
     end
     | [sexp] -> begin
@@ -810,6 +811,7 @@ let soluna_write_primitive env mode args =
             | String (s, _) -> soluna_write_string s
             | _ -> soluna_string_of_sexp sexp in
         if mode then Printf.printf "%s\n" output else Printf.printf "%s" output;
+        flush stdout;
         sexp
     end
     | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'write' requires exactly one argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
@@ -1121,6 +1123,18 @@ let soluna_input_primitive env args =
         | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'input' requires a prompt of type String" error_msg (font_blue ^ pos.filename) pos.line font_rst)
     end
     | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'input' requires a prompt of type String" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+
+let soluna_read_char_primitive args =
+    let pos = soluna_token_pos args in
+    match args with
+    | [] -> begin
+        try
+            let ch = input_char stdin in
+            String (String.make 1 ch, pos)
+        with
+        | End_of_file -> String ("", pos)
+    end
+    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'read-char' requires zero arguments" error_msg (font_blue ^ pos.filename) pos.line font_rst)
 
 let soluna_eval_primitive env args =
     let pos = soluna_token_pos args in
@@ -1500,6 +1514,7 @@ let soluna_init_env () : env =
     Hashtbl.replace env "implode" (Primitive (soluna_implode_primitive env));
     Hashtbl.replace env "length" (Primitive (soluna_length_primitive env));
     Hashtbl.replace env "input" (Primitive (soluna_input_primitive env));
+    Hashtbl.replace env "read-char" (Primitive soluna_read_char_primitive);
     Hashtbl.replace env "eval" (Primitive (soluna_eval_primitive env));
     Hashtbl.replace env "type" (Primitive soluna_type_primitive);
     Hashtbl.replace env "int" (Primitive (soluna_int_primitive env));
