@@ -11,5 +11,5 @@
 (executable
  (public_name soluna)
  (name main)
- (libraries soluna)
+ (libraries unix soluna)
  (modules main bundler))

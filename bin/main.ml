@@ -209,6 +209,15 @@ let rec soluna_get_string sexp str line =
         | 't' :: tt -> soluna_get_string tt (str ^ "\t") line
         | '\\' :: tt -> soluna_get_string tt (str ^ "\\") line
         | '"' :: tt -> soluna_get_string tt (str ^ "\"") line
+        | 'x' :: h1 :: h2 :: tt -> begin
+            let hex_str = Printf.sprintf "0x%c%c" h1 h2 in
+            let char_val =
+              try int_of_string hex_str
+              with Failure _ -> failwith (Printf.sprintf "[%s] %stokenizer:%d%s -> Invalid hexadecimal escape sequence" error_msg font_blue line font_rst)
+            in
+            let esc_char = String.make 1 (Char.chr char_val) in
+            soluna_get_string tt (str ^ esc_char) line
+        end
         | h :: tt -> soluna_get_string tt (str ^ "\\" ^ String.make 1 h) line
         | [] -> failwith (Printf.sprintf "[%s] %stokenizer:%d%s -> String ends unexpectedly after escape character" error_msg font_blue line font_rst)
     end
@@ -794,6 +803,7 @@ let soluna_write_primitive env mode args =
             | String (s, _) -> soluna_write_string s
             | _ -> soluna_string_of_sexp sexp in
         if mode then Printf.printf "%s%s%s\n" color output user_reset else Printf.printf "%s%s%s" color output user_reset;
+        flush stdout;
         sexp
     end
     | [sexp] -> begin
@@ -801,6 +811,7 @@ let soluna_write_primitive env mode args =
             | String (s, _) -> soluna_write_string s
             | _ -> soluna_string_of_sexp sexp in
         if mode then Printf.printf "%s\n" output else Printf.printf "%s" output;
+        flush stdout;
         sexp
     end
     | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'write' requires exactly one argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
@@ -1112,6 +1123,18 @@ let soluna_input_primitive env args =
         | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'input' requires a prompt of type String" error_msg (font_blue ^ pos.filename) pos.line font_rst)
     end
     | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'input' requires a prompt of type String" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+
+let soluna_read_char_primitive args =
+    let pos = soluna_token_pos args in
+    match args with
+    | [] -> begin
+        try
+            let ch = input_char stdin in
+            String (String.make 1 ch, pos)
+        with
+        | End_of_file -> String ("", pos)
+    end
+    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'read-char' requires zero arguments" error_msg (font_blue ^ pos.filename) pos.line font_rst)
 
 let soluna_eval_primitive env args =
     let pos = soluna_token_pos args in
@@ -1431,6 +1454,33 @@ let soluna_logic_not_primitive func args =
     end
     | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Logical operations requires two Integers as arguments" error_msg (font_blue ^ pos.filename) pos.line font_rst)
 
+let soluna_read_key_primitive args =
+    let pos = soluna_token_pos args in
+    match args with
+    | [] -> begin
+        flush stdout;
+        let fd = Unix.descr_of_in_channel stdin in
+        let old_termios = Unix.tcgetattr fd in
+        let new_termios = { old_termios with
+                            Unix.c_icanon = false;
+                            Unix.c_echo = false;
+                            Unix.c_vmin = 1;
+                            Unix.c_vtime = 0
+                          } in
+        Unix.tcsetattr fd Unix.TCSADRAIN new_termios;
+        let char_read =
+          try
+            let c = input_char stdin in
+            Unix.tcsetattr fd Unix.TCSADRAIN old_termios;
+            String.make 1 c
+          with
+            | End_of_file -> Unix.tcsetattr fd Unix.TCSADRAIN old_termios; ""
+            | exn -> Unix.tcsetattr fd Unix.TCSADRAIN old_termios; raise exn
+        in
+        String (char_read, pos)
+    end
+    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> read-key requires no arguments" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+
 let soluna_init_env () : env =
     let env = Hashtbl.create 20 in 
     Hashtbl.replace env "+" (Primitive (soluna_arithmetic_primitive (+) (+.))); 
@@ -1464,6 +1514,7 @@ let soluna_init_env () : env =
     Hashtbl.replace env "implode" (Primitive (soluna_implode_primitive env));
     Hashtbl.replace env "length" (Primitive (soluna_length_primitive env));
     Hashtbl.replace env "input" (Primitive (soluna_input_primitive env));
+    Hashtbl.replace env "read-char" (Primitive soluna_read_char_primitive);
     Hashtbl.replace env "eval" (Primitive (soluna_eval_primitive env));
     Hashtbl.replace env "type" (Primitive soluna_type_primitive);
     Hashtbl.replace env "int" (Primitive (soluna_int_primitive env));
@@ -1486,7 +1537,8 @@ let soluna_init_env () : env =
     Hashtbl.replace env "xor" (Primitive (soluna_logic_primitive (lxor))); 
     Hashtbl.replace env "nand" (Primitive (soluna_logic_not_primitive (land))); 
     Hashtbl.replace env "nor" (Primitive (soluna_logic_not_primitive (lor))); 
-    Hashtbl.replace env "xnor" (Primitive (soluna_logic_not_primitive (lxor))); 
+    Hashtbl.replace env "xnor" (Primitive (soluna_logic_not_primitive (lxor)));
+    Hashtbl.replace env "read-key" (Primitive soluna_read_key_primitive);
     env
 
 let rec soluna_bundler_get_full_source filename =
@@ -1527,7 +1579,7 @@ let soluna_bundler entry name =
     else
         name
     in
-    let status = Sys.command (Printf.sprintf "ocamlopt -o %s %s" output_name tmp_file) in
+let status = Sys.command (Printf.sprintf "ocamlopt -I +unix unix.cmxa -o %s %s" output_name tmp_file) in
     let _ = Sys.command "rm bundle_tmp.*" in
     if status = 0 then
         print_endline ((font_green ^ output_name) ^ font_rst ^ " successfully invoked")
