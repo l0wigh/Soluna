@@ -1,6 +1,6 @@
 # Soluna Language Reference
 
-Version described: Soluna `0.10.3` (`soluna_version` in `bin/main.ml`).
+Version described: Soluna `0.10.4` (`soluna_version` in `bin/main.ml`).
 
 This reference describes the interpreter in `bin/main.ml`. Behaviour was checked against that source and against the files in `examples/` and `examples/tests/`. The examples were not executed for this revision. Points marked **to confirm** are read from the source but not yet checked by a run.
 
@@ -81,8 +81,8 @@ Built-in functions are ordinary values bound in the global environment. A progra
 | Form | Scope of bindings created inside it |
 | ---- | ----------------------------------- |
 | top level, `do`, `while`, `each`, `if` branches | Same environment as the enclosing code. A `defvar` here stays visible after the form ends. |
-| `function`, `lambda` call | A new environment: a copy of the environment where the function was defined, taken when the function is called. Bindings made inside stay local. |
-| `let`, `let*` | A new environment. Bindings made inside stay local. |
+| `function`, `lambda` call | A new scope whose parent is the environment where the function was defined. Bindings made inside stay local; a function sees the current state of the scope it was defined in, and `set!` can change the enclosing bindings. |
+| `let`, `let*` | A new scope, child of the current one. Bindings made inside stay local; `set!` can change the enclosing bindings. |
 
 `examples/mutation.luna` shows the function case: a `defvar x` inside a function does not change the global `x`.
 
@@ -102,7 +102,15 @@ Built-in functions are ordinary values bound in the global environment. A progra
 
 Binds `name` to the evaluated `value` in the current environment, and returns the value.
 
-Redefining a name that already exists in the same environment does not raise an error. The new binding shadows the old one (see section 8).
+Redefining a name that already exists in the same environment does not raise an error. The new binding replaces the previous one (see section 8).
+
+#### `set!`
+
+```lisp
+(set! name value)
+```
+
+Changes the binding of `name` to the evaluated `value`, in the nearest scope where `name` is already bound — the current scope, an enclosing one, or the top level. Returns the value. If `name` is not bound anywhere, it is an error: `set!` only changes an existing binding, use `defvar` to create one.
 
 #### `function`
 
@@ -726,7 +734,7 @@ A Float token contains a `.`. A Keyword token starts with `:`. The grammar does 
 
 These points follow from the source in `bin/main.ml`.
 
-* **`defvar` does not enforce immutability.** A second `defvar` for the same name in the same environment shadows the first. No error is raised. A function copies the environment where it was defined when it is called, so it sees the binding that is current at that moment.
+* **`defvar` does not enforce immutability.** A second `defvar` for the same name in the same scope replaces the previous binding. No error is raised. Scopes form a chain: a function call, `let` and `let*` create a scope whose parent is the defining scope (function) or the current scope (`let`, `let*`). Lookups walk the chain, so a function sees the current state of the scope it was defined in; `set!` changes the nearest scope where the name is bound.
 * **Truthiness differs between forms.** `if` treats `false` and `()` as false. `case` and `while` treat only `false` as false, so `()` is true in those forms. A `while` whose condition is `()` does not stop.
 * **Numbers in `match` are compared by type.** `1` and `1.0` do not match each other in a pattern. Numbers in `=` are compared with a tolerance of `1e-11`. **To confirm.**
 * **Equality of lists** is structural and ignores source positions: two lists with the same contents compare equal wherever they were written. Numbers inside a list are compared by exact value, with Integers and Floats distinct. Dicts and function values are compared by identity, not by their contents.

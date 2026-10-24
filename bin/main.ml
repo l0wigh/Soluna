@@ -1,10 +1,11 @@
-let soluna_version = "0.10.3"
+let soluna_version = "0.10.4"
 type soluna_position = { filename: string; line: int; }
 type cmp_op = Eq | Neq | Lt | Gt | Leq | Geq
 type number =
     | Integer of int
     | Float of float
-type soluna_expr =
+type env = { tbl: (string, soluna_expr) Hashtbl.t; parent: env option }
+and soluna_expr =
     | Number of number * soluna_position
     | Symbol of string * soluna_position
     | Boolean of bool * soluna_position
@@ -12,9 +13,8 @@ type soluna_expr =
     | String of string * soluna_position
     | Primitive of (soluna_expr list -> soluna_expr)
     | Dict of (string, soluna_expr) Hashtbl.t * soluna_position
-    | Lambda of (string * bool) list * soluna_expr * (string, soluna_expr) Hashtbl.t
+    | Lambda of (string * bool) list * soluna_expr * env
     | Macro of (string * bool) list * soluna_expr
-type env = (string, soluna_expr) Hashtbl.t
 type soluna_token = { token: string; pos: soluna_position }
 let unknown_pos = { filename = "unknown"; line = 1; }
 let help_bold = "\027[1m"
@@ -32,6 +32,27 @@ let user_red = "\x1b[31m"
 let user_green = "\x1b[32m"
 let user_yellow = "\x1b[33m"
 let user_blue = "\x1b[34m"
+
+let soluna_env_child parent = { tbl = Hashtbl.create 10; parent = Some parent }
+
+let rec soluna_env_find env name =
+    match Hashtbl.find_opt env.tbl name with
+    | Some value -> Some value
+    | None -> begin
+        match env.parent with
+        | Some parent -> soluna_env_find parent name
+        | None -> None
+    end
+
+let rec soluna_env_set env name value =
+    if Hashtbl.mem env.tbl name then begin
+        Hashtbl.replace env.tbl name value;
+        true
+    end else begin
+        match env.parent with
+        | Some parent -> soluna_env_set parent name value
+        | None -> false
+    end
 
 open Filename
 
@@ -290,22 +311,22 @@ let rec soluna_unify pattern value env =
     | List (Symbol ("any", _) :: patterns, _), target -> begin
         List.exists (fun p ->
           (* On utilise un environnement temporaire pour tester le pattern *)
-          let temp_env = Hashtbl.copy env in
+          let temp_env = { tbl = Hashtbl.copy env.tbl; parent = None } in
           if soluna_unify p target temp_env then begin
             (* Si ça match, on déverse les liaisons dans le vrai env *)
-            Hashtbl.iter (Hashtbl.replace env) temp_env;
+            Hashtbl.iter (Hashtbl.replace env.tbl) temp_env.tbl;
             true
           end else false
         ) patterns
     end
     | List ([p; Symbol ("as", _); Symbol (name, _)], _), target -> begin
         if soluna_unify p target env then begin
-            Hashtbl.replace env name target;
+            Hashtbl.replace env.tbl name target;
             true
         end else false
     end
     | Symbol (name, _), _ -> begin
-        Hashtbl.replace env name value;
+        Hashtbl.replace env.tbl name value;
         true
     end
     | List ([Symbol ("quote", _); Symbol (name, _)], _), Symbol (value, _) -> name = value
@@ -356,22 +377,26 @@ let rec soluna_eval sexp (env: env) =
     match sexp with
     | Number _  | Boolean _ -> sexp 
 
-    | List ([Symbol ("defvar", _); Symbol (name, _); raw_val], pos) -> begin
+    | List ([Symbol ("defvar", _); Symbol (name, _); raw_val], _) -> begin
         let bind = soluna_eval raw_val env in
-        begin try
-            Hashtbl.add env name bind;
-        with
-        | Invalid_argument _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Cannot redefine immutable variable: %s" error_msg (font_blue ^ pos.filename) pos.line name font_rst)
-        end;
+        Hashtbl.replace env.tbl name bind;
         bind
     end
 
+    | List ([Symbol ("set!", _); Symbol (name, _); raw_val], pos) -> begin
+        let new_val = soluna_eval raw_val env in
+        if soluna_env_set env name new_val then new_val
+        else failwith (Printf.sprintf "[%s] %s:%d%s -> Unbound variable '%s' for 'set!' (use 'defvar' to create it)" error_msg (font_blue ^ pos.filename) pos.line name font_rst)
+    end
+
+    | List (Symbol ("set!", _) :: _, pos) -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'set!' syntax: (set! name value)" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+
     | List (Symbol ("let", _) :: List (bindings, _) :: body_sexp, pos) -> begin
-        let local_env = Hashtbl.copy env in
+        let local_env = soluna_env_child env in
         List.iter (function
         | List ([Symbol (name, _); expr], _) -> begin
             let value = soluna_eval expr env in
-            Hashtbl.replace local_env name value
+            Hashtbl.replace local_env.tbl name value
         end
         | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Wrong 'let' syntax. You should pass local variables this way ((x 1) (y 2))" error_msg (font_blue ^ pos.filename) pos.line font_rst)
         ) bindings;
@@ -384,9 +409,9 @@ let rec soluna_eval sexp (env: env) =
         let curr_env = ref env in
         List.iter (function
         | List ([Symbol (name, _); expr], _) -> begin
-            let local_env = Hashtbl.copy !curr_env in
+            let local_env = soluna_env_child !curr_env in
             let value = soluna_eval expr !curr_env in
-            Hashtbl.replace local_env name value;
+            Hashtbl.replace local_env.tbl name value;
             curr_env := local_env
         end
         | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Wrong 'let*' syntax. You should pass local variables this way ((x 1) (y 2))" error_msg (font_blue ^ pos.filename) pos.line font_rst)
@@ -409,11 +434,7 @@ let rec soluna_eval sexp (env: env) =
         in
         let param_names = defmacro_extract_params params in
         let macro = Macro (param_names, body) in
-        begin try
-            Hashtbl.add env name macro;
-        with
-        | Invalid_argument _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Cannot redefine immutable variable: %s" error_msg (font_blue ^ pos.filename) pos.line name font_rst)
-        end;
+        Hashtbl.replace env.tbl name macro;
         Symbol (name, pos)
     end
 
@@ -423,8 +444,8 @@ let rec soluna_eval sexp (env: env) =
         with
         | Failure msg -> begin
             let error_sexp = String (msg, pos) in
-            let handler_env = Hashtbl.copy env in
-            Hashtbl.replace handler_env catch_var error_sexp;
+            let handler_env = soluna_env_child env in
+            Hashtbl.replace handler_env.tbl catch_var error_sexp;
             soluna_eval handler_sexp handler_env
         end
     end
@@ -451,7 +472,7 @@ let rec soluna_eval sexp (env: env) =
         in
         let params_names = lambda_extract_params params_list in
         let named_lambda = Lambda (params_names, body_sexp, env) in
-        Hashtbl.replace env name named_lambda;
+        Hashtbl.replace env.tbl name named_lambda;
         named_lambda
     end
 
@@ -489,7 +510,7 @@ let rec soluna_eval sexp (env: env) =
 
     | String (s, pos) -> String (s, pos)
     | Symbol (s, pos) when String.length s > 1 && s.[0] = ':' -> String (s, pos)
-    | Symbol (s, pos) -> (try Hashtbl.find env s with | Not_found -> failwith (Printf.sprintf "[%s] %s:%d%s -> Unbound symbol '%s'" error_msg (font_blue ^ pos.filename) pos.line font_rst s))
+    | Symbol (s, pos) -> (match soluna_env_find env s with | Some value -> value | None -> failwith (Printf.sprintf "[%s] %s:%d%s -> Unbound symbol '%s'" error_msg (font_blue ^ pos.filename) pos.line font_rst s))
     | _ -> failwith (Printf.sprintf "[%s] %sruntime:0%s -> soluna_eval is missing something" internal_msg font_blue font_rst)
 
 and soluna_include_file filename pos env =
@@ -525,12 +546,12 @@ and soluna_eval_bind keeper sexp_list env pos =
     | [] -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'bind' requires at least an initial value" error_msg (font_blue ^ pos.filename) pos.line font_rst)
     | initial :: rest -> begin
         let initial_value = soluna_eval initial env in
-        let local_env = Hashtbl.copy env in
+        let local_env = soluna_env_child env in
         let rec bind_aux steps curr_val =
             match steps with
             | [] -> curr_val
             | next :: remaining -> begin
-                Hashtbl.replace local_env keeper curr_val;
+                Hashtbl.replace local_env.tbl keeper curr_val;
                 soluna_eval next local_env |> bind_aux remaining
             end
         in
@@ -574,7 +595,7 @@ and soluna_eval_each var_name lst_sexp body_sexp env pos =
             match curr_list with
             | [] -> List ([], pos)
             | h :: t -> begin
-                Hashtbl.replace env var_name h;
+                Hashtbl.replace env.tbl var_name h;
                 let _ = soluna_eval body_sexp env in
                 loop_elements t
             end
@@ -602,7 +623,7 @@ and soluna_eval_match target_sexp clauses_sexp env pos =
     let rec check_clauses clauses =
         match clauses with
         | List (pattern :: action_part, _) :: rest -> begin
-            let local_env = Hashtbl.copy env in
+            let local_env = soluna_env_child env in
             if soluna_unify pattern target local_env then
                 begin
                     match action_part with
@@ -634,14 +655,14 @@ and soluna_eval_list_form sexp env =
                 fn args
             end
             | Lambda (params, body, lambda_env) -> begin
-                let local_env = Hashtbl.copy lambda_env in
+                let local_env = soluna_env_child lambda_env in
                 let args_values = List.map (fun arg -> soluna_eval arg env) t in
                 let rec bind_lambda ps ts =
                     match ps, ts with
                     | [], [] -> ()
-                    | (name, true) :: _, rest -> Hashtbl.add local_env name (List (rest, pos))
+                    | (name, true) :: _, rest -> Hashtbl.add local_env.tbl name (List (rest, pos))
                     | (name, false) :: ptail, a :: atail -> begin
-                        Hashtbl.add local_env name a;
+                        Hashtbl.add local_env.tbl name a;
                         bind_lambda ptail atail;
                     end
                     | [], _ :: _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Too much arguments" error_msg (font_blue ^ pos.filename) pos.line font_rst)
@@ -651,13 +672,13 @@ and soluna_eval_list_form sexp env =
                 soluna_eval body local_env
             end
             | Macro (params, body) -> begin
-                let macro_env = Hashtbl.copy env in
+                let macro_env = soluna_env_child env in
                 let rec bind_macro ps ts =
                     match ps, ts with
                     | [], [] -> ()
-                    | (name, true) :: _, rest -> Hashtbl.add macro_env name (List (rest, pos))
+                    | (name, true) :: _, rest -> Hashtbl.add macro_env.tbl name (List (rest, pos))
                     | (name, false) :: ptail, a :: atail -> begin
-                        Hashtbl.add macro_env name a;
+                        Hashtbl.add macro_env.tbl name a;
                         bind_macro ptail atail;
                     end
                     | [], _ :: _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> Too much arguments" error_msg (font_blue ^ pos.filename) pos.line font_rst)
@@ -988,9 +1009,9 @@ let soluna_map_lambda_to_sexp lambda sexp =
         if List.length params <> 1 then
             failwith (Printf.sprintf "[%s] %s:%d%s -> Function passed to 'map' or 'filter' must accept exactly one argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
         else
-            let local_env = Hashtbl.copy lambda_env in
+            let local_env = soluna_env_child lambda_env in
             let (params, _) = List.hd params in
-            Hashtbl.replace local_env params sexp;
+            Hashtbl.replace local_env.tbl params sexp;
             soluna_eval body local_env
     end
     | Primitive fn -> fn [sexp]
@@ -1051,11 +1072,11 @@ let soluna_reduce_primitive args =
             | Lambda (params, body, lambda_env) -> begin
                 if List.length params <> 2 then failwith (Printf.sprintf "[%s] %s:%d%s -> 'reduce' function must take exactly two arguments" error_msg (font_blue ^ pos.filename) pos.line font_rst)
                 else begin
-                    let local_env = Hashtbl.copy lambda_env in
+                    let local_env = soluna_env_child lambda_env in
                     let (p1, _) = List.nth params 0 in
                     let (p2, _) = List.nth params 1 in
-                    Hashtbl.replace local_env p1 acc;
-                    Hashtbl.replace local_env p2 h;
+                    Hashtbl.replace local_env.tbl p1 acc;
+                    Hashtbl.replace local_env.tbl p2 h;
                     soluna_eval body local_env
                 end
             end
@@ -1519,65 +1540,65 @@ let soluna_read_key_primitive args =
     | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> read-key requires no arguments" error_msg (font_blue ^ pos.filename) pos.line font_rst)
 
 let soluna_init_env () : env =
-    let env = Hashtbl.create 20 in 
-    Hashtbl.replace env "+" (Primitive (soluna_arithmetic_primitive (+) (+.))); 
-    Hashtbl.replace env "-" (Primitive (soluna_arithmetic_primitive (-) (-.))); 
-    Hashtbl.replace env "*" (Primitive (soluna_arithmetic_primitive ( * ) ( *. )));
-    Hashtbl.replace env "/" (Primitive (soluna_arithmetic_primitive ~force_float:true (/) (/.)));
-    Hashtbl.replace env "<" (Primitive (soluna_comparaison_primitive (Lt)));
-    Hashtbl.replace env ">" (Primitive (soluna_comparaison_primitive (Gt)));
-    Hashtbl.replace env "=" (Primitive (soluna_comparaison_primitive (Eq)));
-    Hashtbl.replace env "!=" (Primitive (soluna_comparaison_primitive (Neq)));
-    Hashtbl.replace env ">=" (Primitive (soluna_comparaison_primitive (Geq)));
-    Hashtbl.replace env "<=" (Primitive (soluna_comparaison_primitive (Leq)));
-    Hashtbl.replace env "not" (Primitive soluna_not_primitive);
-    Hashtbl.replace env "mod" (Primitive soluna_modulo_primitive); 
-    Hashtbl.replace env "write" (Primitive (soluna_write_primitive env false));
-    Hashtbl.replace env "writeln" (Primitive (soluna_write_primitive env true));
-    Hashtbl.replace env "list" (Primitive soluna_list_primitive);
-    Hashtbl.replace env "concat" (Primitive soluna_concat_primitive);
-    Hashtbl.replace env "range" (Primitive soluna_range_primitive);
-    Hashtbl.replace env "fst" (Primitive soluna_fst_primitive);
-    Hashtbl.replace env "rst" (Primitive soluna_rst_primitive);
-    Hashtbl.replace env "set" (Primitive (soluna_set_primitve env));
-    Hashtbl.replace env "get" (Primitive (soluna_get_primitve env));
-    Hashtbl.replace env "null" (Primitive soluna_null_primitive);
-    Hashtbl.replace env "cons" (Primitive soluna_cons_primitive);
-    Hashtbl.replace env "map" (Primitive soluna_map_primitive);
-    Hashtbl.replace env "filter" (Primitive soluna_filter_primitive);
-    Hashtbl.replace env "reduce" (Primitive soluna_reduce_primitive);
-    Hashtbl.replace env "reverse" (Primitive soluna_reverse_primitive);
-    Hashtbl.replace env "explode" (Primitive (soluna_explode_primitive env));
-    Hashtbl.replace env "implode" (Primitive (soluna_implode_primitive env));
-    Hashtbl.replace env "length" (Primitive (soluna_length_primitive env));
-    Hashtbl.replace env "input" (Primitive (soluna_input_primitive env));
-    Hashtbl.replace env "read-char" (Primitive soluna_read_char_primitive);
-    Hashtbl.replace env "eval" (Primitive (soluna_eval_primitive env));
-    Hashtbl.replace env "type" (Primitive soluna_type_primitive);
-    Hashtbl.replace env "int" (Primitive (soluna_int_primitive env));
-    Hashtbl.replace env "float" (Primitive (soluna_float_primitive env));
-    Hashtbl.replace env "str" (Primitive (soluna_str_primitive env));
-    Hashtbl.replace env "symbol->string" (Primitive soluna_symbol_to_string_primitive);
-    Hashtbl.replace env "string->symbol" (Primitive soluna_string_to_symbol_primitive);
-    Hashtbl.replace env "read-file" (Primitive (soluna_read_file_primitive env));
-    Hashtbl.replace env "write-file" (Primitive (soluna_write_file_primitive env));
-    Hashtbl.replace env "dict" (Primitive soluna_dict_primitive);
-    Hashtbl.replace env "dict-set" (Primitive soluna_dict_set_primitive);
-    Hashtbl.replace env "dict-get" (Primitive soluna_dict_get_primitive);
-    Hashtbl.replace env "dict-ref" (Primitive soluna_dict_ref_primitive);
-    Hashtbl.replace env "dict-keys" (Primitive soluna_dict_keys_primitive);
-    Hashtbl.replace env "dict-values" (Primitive soluna_dict_values_primitive);
-    Hashtbl.replace env "dict-remove" (Primitive soluna_dict_remove_primitive);
-    Hashtbl.replace env "dict-contains" (Primitive soluna_dict_contains_primitive);
-    Hashtbl.replace env "cmd" (Primitive soluna_cmd_primitive);
-    Hashtbl.replace env "exit" (Primitive soluna_exit_primitive);
-    Hashtbl.replace env "and" (Primitive (soluna_logic_primitive (land))); 
-    Hashtbl.replace env "or" (Primitive (soluna_logic_primitive (lor))); 
-    Hashtbl.replace env "xor" (Primitive (soluna_logic_primitive (lxor))); 
-    Hashtbl.replace env "nand" (Primitive (soluna_logic_not_primitive (land))); 
-    Hashtbl.replace env "nor" (Primitive (soluna_logic_not_primitive (lor))); 
-    Hashtbl.replace env "xnor" (Primitive (soluna_logic_not_primitive (lxor)));
-    Hashtbl.replace env "read-key" (Primitive soluna_read_key_primitive);
+    let env = { tbl = Hashtbl.create 20; parent = None } in 
+    Hashtbl.replace env.tbl "+" (Primitive (soluna_arithmetic_primitive (+) (+.))); 
+    Hashtbl.replace env.tbl "-" (Primitive (soluna_arithmetic_primitive (-) (-.))); 
+    Hashtbl.replace env.tbl "*" (Primitive (soluna_arithmetic_primitive ( * ) ( *. )));
+    Hashtbl.replace env.tbl "/" (Primitive (soluna_arithmetic_primitive ~force_float:true (/) (/.)));
+    Hashtbl.replace env.tbl "<" (Primitive (soluna_comparaison_primitive (Lt)));
+    Hashtbl.replace env.tbl ">" (Primitive (soluna_comparaison_primitive (Gt)));
+    Hashtbl.replace env.tbl "=" (Primitive (soluna_comparaison_primitive (Eq)));
+    Hashtbl.replace env.tbl "!=" (Primitive (soluna_comparaison_primitive (Neq)));
+    Hashtbl.replace env.tbl ">=" (Primitive (soluna_comparaison_primitive (Geq)));
+    Hashtbl.replace env.tbl "<=" (Primitive (soluna_comparaison_primitive (Leq)));
+    Hashtbl.replace env.tbl "not" (Primitive soluna_not_primitive);
+    Hashtbl.replace env.tbl "mod" (Primitive soluna_modulo_primitive); 
+    Hashtbl.replace env.tbl "write" (Primitive (soluna_write_primitive env false));
+    Hashtbl.replace env.tbl "writeln" (Primitive (soluna_write_primitive env true));
+    Hashtbl.replace env.tbl "list" (Primitive soluna_list_primitive);
+    Hashtbl.replace env.tbl "concat" (Primitive soluna_concat_primitive);
+    Hashtbl.replace env.tbl "range" (Primitive soluna_range_primitive);
+    Hashtbl.replace env.tbl "fst" (Primitive soluna_fst_primitive);
+    Hashtbl.replace env.tbl "rst" (Primitive soluna_rst_primitive);
+    Hashtbl.replace env.tbl "set" (Primitive (soluna_set_primitve env));
+    Hashtbl.replace env.tbl "get" (Primitive (soluna_get_primitve env));
+    Hashtbl.replace env.tbl "null" (Primitive soluna_null_primitive);
+    Hashtbl.replace env.tbl "cons" (Primitive soluna_cons_primitive);
+    Hashtbl.replace env.tbl "map" (Primitive soluna_map_primitive);
+    Hashtbl.replace env.tbl "filter" (Primitive soluna_filter_primitive);
+    Hashtbl.replace env.tbl "reduce" (Primitive soluna_reduce_primitive);
+    Hashtbl.replace env.tbl "reverse" (Primitive soluna_reverse_primitive);
+    Hashtbl.replace env.tbl "explode" (Primitive (soluna_explode_primitive env));
+    Hashtbl.replace env.tbl "implode" (Primitive (soluna_implode_primitive env));
+    Hashtbl.replace env.tbl "length" (Primitive (soluna_length_primitive env));
+    Hashtbl.replace env.tbl "input" (Primitive (soluna_input_primitive env));
+    Hashtbl.replace env.tbl "read-char" (Primitive soluna_read_char_primitive);
+    Hashtbl.replace env.tbl "eval" (Primitive (soluna_eval_primitive env));
+    Hashtbl.replace env.tbl "type" (Primitive soluna_type_primitive);
+    Hashtbl.replace env.tbl "int" (Primitive (soluna_int_primitive env));
+    Hashtbl.replace env.tbl "float" (Primitive (soluna_float_primitive env));
+    Hashtbl.replace env.tbl "str" (Primitive (soluna_str_primitive env));
+    Hashtbl.replace env.tbl "symbol->string" (Primitive soluna_symbol_to_string_primitive);
+    Hashtbl.replace env.tbl "string->symbol" (Primitive soluna_string_to_symbol_primitive);
+    Hashtbl.replace env.tbl "read-file" (Primitive (soluna_read_file_primitive env));
+    Hashtbl.replace env.tbl "write-file" (Primitive (soluna_write_file_primitive env));
+    Hashtbl.replace env.tbl "dict" (Primitive soluna_dict_primitive);
+    Hashtbl.replace env.tbl "dict-set" (Primitive soluna_dict_set_primitive);
+    Hashtbl.replace env.tbl "dict-get" (Primitive soluna_dict_get_primitive);
+    Hashtbl.replace env.tbl "dict-ref" (Primitive soluna_dict_ref_primitive);
+    Hashtbl.replace env.tbl "dict-keys" (Primitive soluna_dict_keys_primitive);
+    Hashtbl.replace env.tbl "dict-values" (Primitive soluna_dict_values_primitive);
+    Hashtbl.replace env.tbl "dict-remove" (Primitive soluna_dict_remove_primitive);
+    Hashtbl.replace env.tbl "dict-contains" (Primitive soluna_dict_contains_primitive);
+    Hashtbl.replace env.tbl "cmd" (Primitive soluna_cmd_primitive);
+    Hashtbl.replace env.tbl "exit" (Primitive soluna_exit_primitive);
+    Hashtbl.replace env.tbl "and" (Primitive (soluna_logic_primitive (land))); 
+    Hashtbl.replace env.tbl "or" (Primitive (soluna_logic_primitive (lor))); 
+    Hashtbl.replace env.tbl "xor" (Primitive (soluna_logic_primitive (lxor))); 
+    Hashtbl.replace env.tbl "nand" (Primitive (soluna_logic_not_primitive (land))); 
+    Hashtbl.replace env.tbl "nor" (Primitive (soluna_logic_not_primitive (lor))); 
+    Hashtbl.replace env.tbl "xnor" (Primitive (soluna_logic_not_primitive (lxor)));
+    Hashtbl.replace env.tbl "read-key" (Primitive soluna_read_key_primitive);
     env
 
 let rec soluna_bundler_get_full_source filename =
@@ -1706,7 +1727,7 @@ let () =
         if Bundler.is_bundled then
             let data = Bundler.bundled_code |> soluna_quasiquote_shebang_prep |> String.to_seq |> List.of_seq in
             let args_list = List.map (fun s -> String (s, unknown_pos)) (Array.to_list Sys.argv) in
-            Hashtbl.replace global_env "args"  (List (args_list, unknown_pos));
+            Hashtbl.replace global_env.tbl "args"  (List (args_list, unknown_pos));
             let filename = match args_list with
                 | String (f, _) :: _ -> f
                 | _ -> "bundled"
@@ -1728,20 +1749,20 @@ let () =
                 | _ :: "eval" :: code :: extra -> begin
                     let data = code |> soluna_quasiquote_shebang_prep |> String.to_seq |> List.of_seq in
                     let args_list = List.map (fun s -> String (s, unknown_pos)) extra in
-                    Hashtbl.replace global_env "args"  (List (args_list, unknown_pos));
+                    Hashtbl.replace global_env.tbl "args"  (List (args_list, unknown_pos));
                     soluna_tokenizer "" [] data 1 "command_line"
                 end
                 | _ :: filename :: extra -> begin
                     let data = soluna_read_file filename |> String.to_seq |> List.of_seq in
                     let args_list = List.map (fun s -> String (s, unknown_pos)) extra in
                     let args_list = String (filename, unknown_pos) :: args_list in
-                    Hashtbl.replace global_env "args"  (List (args_list, unknown_pos));
+                    Hashtbl.replace global_env.tbl "args"  (List (args_list, unknown_pos));
                     soluna_tokenizer "" [] data 1 filename
                 end
                 | _ -> begin
                     let data = soluna_repl |> soluna_quasiquote_shebang_prep |> String.to_seq |> List.of_seq in
                     let args_list = [] in
-                    Hashtbl.replace global_env "args"  (List (args_list, unknown_pos));
+                    Hashtbl.replace global_env.tbl "args"  (List (args_list, unknown_pos));
                     soluna_tokenizer "" [] data 1 "Oracle"
                 end
             in
