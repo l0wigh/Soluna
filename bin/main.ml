@@ -1,4 +1,4 @@
-let soluna_version = "0.10.2"
+let soluna_version = "0.10.3"
 type soluna_position = { filename: string; line: int; }
 type cmp_op = Eq | Neq | Lt | Gt | Leq | Geq
 type number =
@@ -308,6 +308,7 @@ let rec soluna_unify pattern value env =
         Hashtbl.replace env name value;
         true
     end
+    | List ([Symbol ("quote", _); Symbol (name, _)], _), Symbol (value, _) -> name = value
     | Number (a, _), Number (b, _) -> a = b
     | Boolean (a, _), Boolean (b, _) -> a = b
     | String (a, _), String (b, _) -> a = b
@@ -705,6 +706,24 @@ and simplify_num num =
         else Float f
     | Integer i -> Integer i
 
+let rec soluna_sexp_equal a b =
+    match a, b with
+    | Number (n1, _), Number (n2, _) -> n1 = n2
+    | Boolean (b1, _), Boolean (b2, _) -> b1 = b2
+    | String (s1, _), String (s2, _) -> s1 = s2
+    | Symbol (s1, _), Symbol (s2, _) -> s1 = s2
+    | List (l1, _), List (l2, _) -> soluna_sexp_list_equal l1 l2
+    | Primitive _, Primitive _ -> a == b
+    | Lambda _, Lambda _ -> a == b
+    | Macro _, Macro _ -> a == b
+    | Dict _, Dict _ -> a == b
+    | _ -> false
+and soluna_sexp_list_equal l1 l2 =
+    match l1, l2 with
+    | [], [] -> true
+    | x :: xs, y :: ys -> soluna_sexp_equal x y && soluna_sexp_list_equal xs ys
+    | _ -> false
+
 let soluna_comparaison_primitive mode args =
     let pos = soluna_token_pos args in
     let epsilon = 1e-11 in
@@ -736,10 +755,16 @@ let soluna_comparaison_primitive mode args =
             | Neq -> a <> b
             | _   -> failwith "Seuls = et != sont valides pour les booleens"
         in Boolean (res, pos)
-    | [List (a, _); List (b, _)] -> 
+    | [Symbol (a, _); Symbol (b, _)] ->
         let res = match mode with
             | Eq  -> a = b
             | Neq -> a <> b
+            | _   -> failwith "Seuls = et != sont valides pour les symboles"
+        in Boolean (res, pos)
+    | [List (a, _); List (b, _)] -> 
+        let res = match mode with
+            | Eq  -> soluna_sexp_list_equal a b
+            | Neq -> not (soluna_sexp_list_equal a b)
             | _   -> failwith "Seuls = et != sont valides pour les listes"
         in Boolean (res, pos)
     | _ -> 
@@ -1269,6 +1294,18 @@ let soluna_str_primitive env args =
     end
     | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'str' primitive requires a Number as argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
 
+let soluna_symbol_to_string_primitive args =
+    let pos = soluna_token_pos args in
+    match args with
+    | [Symbol (s, _)] -> String (s, pos)
+    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'symbol->string' requires a Symbol as argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+
+let soluna_string_to_symbol_primitive args =
+    let pos = soluna_token_pos args in
+    match args with
+    | [String (s, _)] -> Symbol (s, pos)
+    | _ -> failwith (Printf.sprintf "[%s] %s:%d%s -> 'string->symbol' requires a String as argument" error_msg (font_blue ^ pos.filename) pos.line font_rst)
+
 let rec soluna_read_file_primitive env args =
     let pos = soluna_token_pos args in
     match args with
@@ -1520,6 +1557,8 @@ let soluna_init_env () : env =
     Hashtbl.replace env "int" (Primitive (soluna_int_primitive env));
     Hashtbl.replace env "float" (Primitive (soluna_float_primitive env));
     Hashtbl.replace env "str" (Primitive (soluna_str_primitive env));
+    Hashtbl.replace env "symbol->string" (Primitive soluna_symbol_to_string_primitive);
+    Hashtbl.replace env "string->symbol" (Primitive soluna_string_to_symbol_primitive);
     Hashtbl.replace env "read-file" (Primitive (soluna_read_file_primitive env));
     Hashtbl.replace env "write-file" (Primitive (soluna_write_file_primitive env));
     Hashtbl.replace env "dict" (Primitive soluna_dict_primitive);

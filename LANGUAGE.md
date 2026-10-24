@@ -1,6 +1,6 @@
 # Soluna Language Reference
 
-Version described: Soluna `0.10.2` (`soluna_version` in `bin/main.ml`).
+Version described: Soluna `0.10.3` (`soluna_version` in `bin/main.ml`).
 
 This reference describes the interpreter in `bin/main.ml`. Behaviour was checked against that source and against the files in `examples/` and `examples/tests/`. The examples were not executed for this revision. Points marked **to confirm** are read from the source but not yet checked by a run.
 
@@ -224,6 +224,7 @@ Pattern rules:
 | ------- | ------- |
 | `42`, `true`, `"text"` | The same Integer, Boolean or String. |
 | `()` | The empty list, or the empty string `""`. |
+| `(quote name)` | The Symbol whose name is `name`. `'name` reads as the same pattern. |
 | `(p1 p2 ...)` | A list of the same length whose elements match `p1`, `p2`, ... |
 | `(head :: tail)` | A non-empty list (`head` is the first element, `tail` is the rest) or a non-empty string (`head` is its first character as a String, `tail` the rest of the string). |
 | `name` | Any value. The value is bound to `name` in the clause body. |
@@ -501,7 +502,7 @@ All built-in functions receive their arguments already evaluated, except the spe
 | `/` | one or more Numbers | Number | Always computed as a Float. `(/ 8 2)` → `4`, `(/ 5 2)` → `2.5`. |
 | `mod` | two Integers, or two Floats | Number | `(mod 10 3)` → `1`. The sign follows the first argument. Division by zero is an error. |
 | `<` `>` `<=` `>=` | two Numbers, or two Strings | Boolean | Strings are compared by character codes. |
-| `=` `!=` | two Numbers, two Strings, two Booleans, or two lists | Boolean | Numbers are equal when they differ by less than `1e-11`: `(= 1 1.0)` → `true`. Lists: see section 8. |
+| `=` `!=` | two Numbers, two Strings, two Booleans, two Symbols, or two lists | Boolean | Numbers are equal when they differ by less than `1e-11`: `(= 1 1.0)` → `true`. Symbols are equal when their names match. Lists: see section 8. |
 
 **Number results.** When all arguments are Integers, the result is an Integer. If any argument is a Float, the result is a Float. A Float result with no fractional part is returned as an Integer: `(+ 1.5 0.5)` → `2`, and `(+ 10 0.5)` → `10.5`.
 
@@ -526,6 +527,8 @@ All built-in functions receive their arguments already evaluated, except the spe
 | `int` | a String, Integer or Float | Integer | A String is parsed with OCaml `int_of_string`. A String that cannot be parsed gives `0`, without an error. A Float is truncated toward zero. |
 | `float` | a String, Integer or Float | Float | A String is parsed with OCaml `float_of_string`. A String that cannot be parsed gives `0.0`, without an error. |
 | `str` | an Integer or Float | String | Other types are an error. A Float is converted with OCaml `string_of_float`. |
+| `symbol->string` | a Symbol | String | Other types are an error. |
+| `string->symbol` | a String | Symbol | Other types are an error. |
 | `type` | any value | String | See the list below. |
 
 `type` returns one of: `"Integer"`, `"Float"`, `"String"`, `"Boolean"`, `"List"`, `"Nil"` (the empty list), `"Symbol"`, `"Lambda"`, `"Macro"`, `"Primitive"`, `"Dict"`.
@@ -726,7 +729,7 @@ These points follow from the source in `bin/main.ml`.
 * **`defvar` does not enforce immutability.** A second `defvar` for the same name in the same environment shadows the first. No error is raised. A function copies the environment where it was defined when it is called, so it sees the binding that is current at that moment.
 * **Truthiness differs between forms.** `if` treats `false` and `()` as false. `case` and `while` treat only `false` as false, so `()` is true in those forms. A `while` whose condition is `()` does not stop.
 * **Numbers in `match` are compared by type.** `1` and `1.0` do not match each other in a pattern. Numbers in `=` are compared with a tolerance of `1e-11`. **To confirm.**
-* **Equality of lists** is OCaml structural equality over the parsed syntax tree, which holds a source position on every element. Two lists with the same contents may compare unequal when they come from different lines of source. **To confirm.**
+* **Equality of lists** is structural and ignores source positions: two lists with the same contents compare equal wherever they were written. Numbers inside a list are compared by exact value, with Integers and Floats distinct. Dicts and function values are compared by identity, not by their contents.
 * **Escape sequences** in a String are processed when the file is read and again when the String is written. A String written as `"\\n"` may therefore print as a line break. **To confirm.**
 * **Quote preprocessing.** Before tokenising, the reader inserts spaces around `(`, `)`, `'`, `` ` ``, `,` and `,@` outside strings. It treats a `"` as the end of a string even when the `"` follows a backslash. A `\"` inside a String may therefore change how later characters are read. **To confirm.**
 * **Silent fallbacks.** `int` and `float` return `0` and `0.0` for a String that cannot be parsed. `set` with an index out of range returns the value unchanged.
